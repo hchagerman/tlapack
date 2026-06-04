@@ -15,6 +15,7 @@
 #include <tlapack/blas/syrk.hpp>
 #include <tlapack/blas/trmm.hpp>
 #include <tlapack/lapack/geqr2.hpp>
+#include <tlapack/lapack/geqrt3.hpp>
 #include <tlapack/lapack/lacpy.hpp>
 #include <tlapack/lapack/lange.hpp>
 #include <tlapack/lapack/lansy.hpp>
@@ -22,8 +23,6 @@
 #include <tlapack/lapack/larft.hpp>
 #include <tlapack/lapack/laset.hpp>
 #include <tlapack/lapack/ung2r.hpp>
-
-#include <tlapack/lapack/geqrt3.hpp>
 
 // C++ headers
 #include <chrono>  // for high_resolution_clock
@@ -64,8 +63,7 @@ void run(size_t m, size_t n)
 
     // Arrays
     std::vector<T> tau_work(n);
-    //create flops counter
-    double flopsQR = 0;
+    // create flops counter
 
     // Matrices
     std::vector<T> A_;
@@ -83,10 +81,10 @@ void run(size_t m, size_t n)
             A(i, j) = T(static_cast<float>(0xDEADBEEF));
             Q(i, j) = T(static_cast<float>(0xCAFED00D));
         }
-        for (idx_t i = 0; i < n; ++i){
+        for (idx_t i = 0; i < n; ++i) {
             Tmatrix(i, j) = T(static_cast<float>(0XFEE1DEAD));
-        R(i, j) = T(static_cast<float>(0xFEE1DEAD));
-        tau_work[j] = T(static_cast<float>(0xFFBADD11));
+            R(i, j) = T(static_cast<float>(0xFEE1DEAD));
+            tau_work[j] = T(static_cast<float>(0xFFBADD11));
         }
     }
     // Generate a random matrix in A
@@ -106,7 +104,7 @@ void run(size_t m, size_t n)
     // Record start time
     auto startQR = std::chrono::high_resolution_clock::now();
     {
-        tlapack::geqrt3<T>(Q, Tmatrix, flopsQR);
+        tlapack::geqrt3<T>(Q, Tmatrix);
     }
     // Record end time
     auto endQR = std::chrono::high_resolution_clock::now();
@@ -140,7 +138,8 @@ void run(size_t m, size_t n)
         auto work = new_matrix(work_, n, n);
         for (idx_t j = 0; j < n; ++j)
             for (idx_t i = 0; i < n; ++i)
-                work(i, j) = static_cast<float>(0xABADBABE);;
+                work(i, j) = static_cast<float>(0xABADBABE);
+        ;
 
         // work receives the identity n*n
         tlapack::laset(tlapack::GENERAL, static_cast<T>(0.0),
@@ -183,18 +182,20 @@ void run(size_t m, size_t n)
     // *) Output
 
     std::cout << std::endl;
-double seconds = elapsedQR.count() * 1.0e-9;
+    double seconds = elapsedQR.count() * 1.0e-9;
+    // Add the flops from geqrt3
+    double flopsQR = (3.0 * m * n * n) - ((5.0 / 6.0) * n * n * n) +
+                     ((1.0 / 2.0) * n * n) + ((1.0 / 3.0) * n);
 
-std::cout << "time = " << elapsedQR.count() * 1.0e-6 << " ms"
-          << ",   GFlop/sec = " << (flopsQR / seconds) * 1.0e-9 << std::endl;
+    std::cout << "time = " << elapsedQR.count() * 1.0e-6 << " ms"
 
-    std::cout << "FLOPs = " << flopsQR << std::endl;
+              << ",   GFlop/sec = " << (flopsQR / seconds) * 1.0e-9
+              << std::endl;
 
     std::cout << "||QR - A||_F/||A||_F  = " << std::real(norm_repres_1)
               << ",        ||Q'Q - I||_F  = " << std::real(norm_orth_1);
     std::cout << std::endl;
 }
-
 //================================================================================
 //================================================================================
 int main(int argc, char** argv)
@@ -217,25 +218,25 @@ int main(int argc, char** argv)
     run<float>(m, n);
     printf("-----------------------\n");
 
-    // printf("run< double >( %d, %d )", m, n);
-    // run<double>(m, n);
-    // printf("-----------------------\n");
+    printf("run< double >( %d, %d )", m, n);
+    run<double>(m, n);
+    printf("-----------------------\n");
 
-    // printf("run< long double >( %d, %d )", m, n);
-    // run<long double>(m, n);
-    // printf("-----------------------\n");
+    printf("run< long double >( %d, %d )", m, n);
+    run<long double>(m, n);
+    printf("-----------------------\n");
 
-    // printf("run< complex<float> >( %d, %d )", m, n);
-    // run<std::complex<float>>(m, n);
-    // printf("-----------------------\n");
+    printf("run< complex<float> >( %d, %d )", m, n);
+    run<std::complex<float>>(m, n);
+    printf("-----------------------\n");
 
-    // printf("run< complex<double> >( %d, %d )", m, n);
-    // run<std::complex<double>>(m, n);
-    // printf("-----------------------\n");
+    printf("run< complex<double> >( %d, %d )", m, n);
+    run<std::complex<double>>(m, n);
+    printf("-----------------------\n");
 
-    // printf("run< complex<long double> >( %d, %d )", m, n);
-    // run<std::complex<long double>>(m, n);
-    // printf("-----------------------\n");
+    printf("run< complex<long double> >( %d, %d )", m, n);
+    run<std::complex<long double>>(m, n);
+    printf("-----------------------\n");
 
     return 0;
 }

@@ -9,7 +9,7 @@
 namespace tlapack {
 template <class T, TLAPACK_MATRIX matrix_a, TLAPACK_MATRIX matrix_h>
 
-void geqrt3(matrix_a& A, matrix_h& Tmatrix, double& flopsQR)
+void geqrt3(matrix_a& A, matrix_h& Tmatrix)
 {
     using std::size_t;
     using matrix_t = tlapack::LegacyMatrix<T>;
@@ -38,7 +38,6 @@ void geqrt3(matrix_a& A, matrix_h& Tmatrix, double& flopsQR)
         tlapack::larfg(tlapack::Direction::Forward, tlapack::StoreV::Columnwise,
                        a_vector, Tmatrix(0, 0));
 
-        flopsQR += 3.0 * m;
     }
     else {
         // Define slice sizes
@@ -62,7 +61,7 @@ void geqrt3(matrix_a& A, matrix_h& Tmatrix, double& flopsQR)
         auto T22 = tlapack::slice(Tmatrix, range(n1, n), range(n1, n));
 
         // Cut down to one leading column
-        tlapack::geqrt3<T>(A1, T11, flopsQR);
+        tlapack::geqrt3<T>(A1, T11);
 
         // step 2: Copy A12 into T12
         //no additional flops, just copy
@@ -73,21 +72,15 @@ void geqrt3(matrix_a& A, matrix_h& Tmatrix, double& flopsQR)
         tlapack::trmm(tlapack::Side::Left, tlapack::Uplo::Lower,
                       tlapack::Op::ConjTrans, tlapack::Diag::Unit,
                       static_cast<T>(1.0), A11, T12);
-                    
-        flopsQR += 1.0 * nrows(A12) * ncols(A11) * ncols(T11);
 
         // step 4: T12 + (A21T * A22) = T12
         
         tlapack::gemm(tlapack::Op::ConjTrans, tlapack::Op::NoTrans,
                       static_cast<T>(1.0), A21, A22, static_cast<T>(1.0), T12);
 
-flopsQR += 2.0 * ncols(A21) * ncols(A22) * nrows(A21);
         // T12 + (A31T * A32) = T12
-
         tlapack::gemm(tlapack::Op::ConjTrans, tlapack::Op::NoTrans,
                       static_cast<T>(1.0), A31, A32, static_cast<T>(1.0), T12);
-
-flopsQR += 2.0 * ncols(A31) * ncols(A32) * nrows(A31);
 
         // step 5: T11T * T12 = T12
         tlapack::trmm(tlapack::Side::Left, tlapack::Uplo::Upper,
@@ -95,27 +88,21 @@ flopsQR += 2.0 * ncols(A31) * ncols(A32) * nrows(A31);
                       static_cast<T>(1.0), T11, T12);
 
 
-flopsQR += 1.0 * nrows(T12) * ncols(T11) * ncols(T11);
-
         // step 6: A22 - (A21 * T12) = A22
         tlapack::gemm(tlapack::Op::NoTrans, tlapack::Op::NoTrans,
                       static_cast<T>(-1.0), A21, T12, static_cast<T>(1.0), A22);
 
-flopsQR += 2.0 * nrows(A21) * ncols(A22) * ncols(A21);
 
         // A32 - (A31 * T12) = A32
         tlapack::gemm(tlapack::Op::NoTrans, tlapack::Op::NoTrans,
                       static_cast<T>(-1.0), A31, T12, static_cast<T>(1.0), A32);
 
-flopsQR += 2.0 * nrows(A31) * ncols(A32) * ncols(A31);
 
         // step 7: A11 * T12 = T12
         tlapack::trmm(tlapack::Side::Left, tlapack::Uplo::Lower,
                       tlapack::Op::NoTrans, tlapack::Diag::Unit,
                       static_cast<T>(1.0), A11, T12);
 
-        
-flopsQR += 1.0 * nrows(A12) * ncols(A11) * nrows(T11);
 
         // step 8: A12 - T12 = A12
         for (idx_t j = 0; j < n2; ++j) {
@@ -123,9 +110,8 @@ flopsQR += 1.0 * nrows(A12) * ncols(A11) * nrows(T11);
                 A12(i, j) -= T12(i, j);
             }
         }
-        flopsQR += 1.0 * m1 * n2;
 
-        tlapack::geqrt3<T>(A22_32, T22, flopsQR);
+        tlapack::geqrt3<T>(A22_32, T22);
 
         // step 10:
         for (idx_t j = 0; j < n2; ++j) {
@@ -142,25 +128,20 @@ flopsQR += 1.0 * nrows(A12) * ncols(A11) * nrows(T11);
                       tlapack::Op ::NoTrans, tlapack::Diag::Unit,
                       static_cast<T>(1.0), A22, T12);
 
-        flopsQR += 1.0 * nrows(T22) * ncols(A12) * nrows(A12);
         // step 12:
         tlapack::gemm(tlapack::Op::ConjTrans, tlapack::Op::NoTrans,
                       static_cast<T>(1.0), A31, A32, static_cast<T>(1.0), T12);
 
-        flopsQR += 2.0 * ncols(A31) * ncols(A32) * nrows(A31);
         // step 13:
         tlapack::trmm(tlapack::Side::Left, tlapack::Uplo::Upper,
                       tlapack::Op::NoTrans, tlapack::Diag::NonUnit,
                       static_cast<T>(-1.0), T11, T12);
-
-        flopsQR += 1.0 * nrows(T12) * ncols(T11) * ncols(T11);
 
         // step 14:
         tlapack::trmm(tlapack::Side::Right, tlapack::Uplo::Upper,
                       tlapack::Op::NoTrans, tlapack::Diag::NonUnit,
                       static_cast<T>(1.0), T22, T12);
 
-flopsQR += 1.0 * nrows(T12) * ncols(T22) * nrows(T22);
     }
 }
 }  // namespace tlapack

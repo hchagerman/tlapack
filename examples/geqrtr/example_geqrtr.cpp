@@ -119,6 +119,13 @@ void run(size_t m, size_t n, size_t k)
     std::cout << "||QR - A||_F/||A||_F  = " << norm_repres
               << ",        ||Qᴴ Q - I||_F  = " << norm_orth;
     std::cout << std::endl;
+
+        std::cout << "FLOPs = " << std::endl;
+    std::cout << "3mn^2 - 5/6 n^3 + 1/2 n^2 + 1/3 n = "
+              << static_cast<unsigned int>(3.0 * m * n * n -
+                                           5.0 / 6.0 * n * n * n + 0.5 * n * n +
+                                           1.0 / 3.0 * n)
+              << std::endl;
 }
 
 //------------------------------------------------------------------------------
