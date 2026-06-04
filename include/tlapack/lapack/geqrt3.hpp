@@ -74,20 +74,20 @@ void geqrt3(matrix_a& A, matrix_h& Tmatrix, double& flopsQR)
                       tlapack::Op::ConjTrans, tlapack::Diag::Unit,
                       static_cast<T>(1.0), A11, T12);
                     
-        flopsQR += 1.0 * nrows(A11) * ncols(A11) * ncols(T12);
+        flopsQR += 1.0 * nrows(A12) * ncols(A11) * ncols(T11);
 
         // step 4: T12 + (A21T * A22) = T12
         
         tlapack::gemm(tlapack::Op::ConjTrans, tlapack::Op::NoTrans,
                       static_cast<T>(1.0), A21, A22, static_cast<T>(1.0), T12);
 
-        flopsQR += 2* nrows(A21) * nrows(A22) * ncols(T12);
+flopsQR += 2.0 * ncols(A21) * ncols(A22) * nrows(A21);
         // T12 + (A31T * A32) = T12
 
         tlapack::gemm(tlapack::Op::ConjTrans, tlapack::Op::NoTrans,
                       static_cast<T>(1.0), A31, A32, static_cast<T>(1.0), T12);
 
-                              flopsQR += 2* nrows(A31) * nrows(A32) * ncols(T12);
+flopsQR += 2.0 * ncols(A31) * ncols(A32) * nrows(A31);
 
         // step 5: T11T * T12 = T12
         tlapack::trmm(tlapack::Side::Left, tlapack::Uplo::Upper,
@@ -95,19 +95,19 @@ void geqrt3(matrix_a& A, matrix_h& Tmatrix, double& flopsQR)
                       static_cast<T>(1.0), T11, T12);
 
 
-flopsQR += 1.0 * nrows(T11) * ncols(T11) * ncols(T12);
+flopsQR += 1.0 * nrows(T12) * ncols(T11) * ncols(T11);
 
         // step 6: A22 - (A21 * T12) = A22
         tlapack::gemm(tlapack::Op::NoTrans, tlapack::Op::NoTrans,
                       static_cast<T>(-1.0), A21, T12, static_cast<T>(1.0), A22);
 
-        flopsQR += 2.0 * nrows(A21) * nrows(T12) * ncols(A22);
+flopsQR += 2.0 * nrows(A21) * ncols(A22) * ncols(A21);
 
         // A32 - (A31 * T12) = A32
         tlapack::gemm(tlapack::Op::NoTrans, tlapack::Op::NoTrans,
                       static_cast<T>(-1.0), A31, T12, static_cast<T>(1.0), A32);
 
-        flopsQR += 2.0 * nrows(A31) * nrows(T12) * ncols(A32);
+flopsQR += 2.0 * nrows(A31) * ncols(A32) * ncols(A31);
 
         // step 7: A11 * T12 = T12
         tlapack::trmm(tlapack::Side::Left, tlapack::Uplo::Lower,
@@ -115,7 +115,7 @@ flopsQR += 1.0 * nrows(T11) * ncols(T11) * ncols(T12);
                       static_cast<T>(1.0), A11, T12);
 
         
-flopsQR += 1.0 * nrows(A11) * ncols(A11) * nrows(T12);
+flopsQR += 1.0 * nrows(A12) * ncols(A11) * nrows(T11);
 
         // step 8: A12 - T12 = A12
         for (idx_t j = 0; j < n2; ++j) {
@@ -142,25 +142,25 @@ flopsQR += 1.0 * nrows(A11) * ncols(A11) * nrows(T12);
                       tlapack::Op ::NoTrans, tlapack::Diag::Unit,
                       static_cast<T>(1.0), A22, T12);
 
-        flopsQR += 1.0 * nrows(T12) * ncols(A12) * nrows(A22);
+        flopsQR += 1.0 * nrows(T22) * ncols(A12) * nrows(A12);
         // step 12:
         tlapack::gemm(tlapack::Op::ConjTrans, tlapack::Op::NoTrans,
                       static_cast<T>(1.0), A31, A32, static_cast<T>(1.0), T12);
 
-        flopsQR += 2.0 * nrows(A31) * nrows(A32) * ncols(T12);
+        flopsQR += 2.0 * ncols(A31) * ncols(A32) * nrows(A31);
         // step 13:
         tlapack::trmm(tlapack::Side::Left, tlapack::Uplo::Upper,
                       tlapack::Op::NoTrans, tlapack::Diag::NonUnit,
                       static_cast<T>(-1.0), T11, T12);
 
-        flopsQR += 1.0 * nrows(T11) * ncols(T11) * ncols(T12);
+        flopsQR += 1.0 * nrows(T12) * ncols(T11) * ncols(T11);
 
         // step 14:
         tlapack::trmm(tlapack::Side::Right, tlapack::Uplo::Upper,
                       tlapack::Op::NoTrans, tlapack::Diag::NonUnit,
                       static_cast<T>(1.0), T22, T12);
 
-flopsQR += 1.0 * nrows(T12) * ncols(T12) * nrows(T22);
+flopsQR += 1.0 * nrows(T12) * ncols(T22) * nrows(T22);
     }
 }
 }  // namespace tlapack
