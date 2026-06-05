@@ -1,11 +1,19 @@
-// @file example_practice_work_file.cpp
-/// @author Weslley S Pereira, University of Colorado Denver, USA
+/// @file example_geqrt3.cpp
+/// @author Henricus Bouwmeester, University of Colorado Denver, USA
+/// @author Benicio Ayala, Metropolitan State University of Denver, USA
+/// @author James Barton, Metropolitan State University of Denver, USA
+/// @author Hunter Hagerman, Metropolitan State University of Denver, USA
+/// @author Sandra Swartz, Metropolitan State University of Denver, USA
 //
-// Copyright (c) 2025, University of Colorado Denver. All rights reserved.
+/// Copyright (c) 2026, University of Colorado Denver. All rights reserved.
 //
-// This file is part of <T>LAPACK.
-// <T>LAPACK is free software: you can redistribute it and/or modify it under
-// the terms of the BSD 3-Clause license. See the accompanying LICENSE file.
+/// This file is part of <T>LAPACK.
+/// <T>LAPACK is free software: you can redistribute it and/or modify it under
+/// the terms of the BSD 3-Clause license. See the accompanying LICENSE file.
+//
+// DGEQRT3 recursively computes a QR factorization of a real M-by-N
+// matrix A, using the compact WY representation of Q.
+
 
 // Plugins for <T>LAPACK (must come before <T>LAPACK headers)
 #include <tlapack/plugins/legacyArray.hpp>

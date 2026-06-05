@@ -15,10 +15,14 @@
 #include "testutils.hpp"
 
 // Auxiliary routines
+#include "tlapack/base/utils.hpp"
 #include "tlapack/blas/gemm.hpp"
-#include "tlapack/lapack/geqr2.hpp"
+#include "tlapack/lapack/geqrt3.hpp"
+#include "tlapack/lapack/lacpy.hpp"
 #include "tlapack/lapack/lange.hpp"
 #include "tlapack/lapack/lansy.hpp"
+#include "tlapack/lapack/larf.hpp"
+#include "tlapack/lapack/larfg.hpp"
 #include "tlapack/lapack/laset.hpp"
 #include "tlapack/lapack/ung2r.hpp"
 
@@ -49,24 +53,28 @@ TEMPLATE_TEST_CASE("geqr2 computes the QR factorization of a matrix",
         const real_t eps = ulp<real_t>();
         const real_t tol = real_t(100 * n) * eps;
 
-        std::vector<T> A_;
-        auto A = new_matrix(A_, m, n);
-        std::vector<T> tau(std::min(m, n));
-
-        // Generate a random matrix in A
-        mm.random(A);
-
-        // Compute the norm of A
-        auto normA = tlapack::lange(FROB_NORM, A);
-
-        // Compute the QR factorization of A
-        geqr2(A, tau);
-
         // Check that the factorization was successful
         if (m <= 0 || n <= 0 || m < n) {
             SKIP("m <= 0 || n <= 0 || m < n");
         }
 
+        std::vector<T> A_;
+        auto A = new_matrix(A_, m, n);
+        std::vector<T> T_;
+        auto Tmatrix = new_matrix(T_, n, n);
+        std::vector<T> tau(std::min(m, n));
+
+        // Generate a random matrix in A
+        mm.random(A);
+        mm.random(Tmatrix);
+
+        // Compute the norm of A
+        auto normA = tlapack::lange(FROB_NORM, A);
+
+        // Compute the QR factorization of A
+        tlapack::geqrt3<T>(A, Tmatrix);
+
+        
         // Generates Q = H_1 H_2 ... H_n
         tlapack::ung2r(A, tau);
 

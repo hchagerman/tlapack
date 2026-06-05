@@ -204,8 +204,9 @@ int main(int argc, char** argv)
 
     std::cout.precision(5);
     std::cout << std::scientific << std::showpos;
-    m = 128;
-    n = 64;
+
+    m = 2;
+    n = 2;
 
     printf("run< float  >( %d, %d )", m, n);
     run<float>(m, n);

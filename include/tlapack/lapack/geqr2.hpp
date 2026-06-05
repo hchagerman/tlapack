@@ -142,7 +142,15 @@ int geqr2(matrix_t& A, vector_t& tau)
     const idx_t n = ncols(A);
 
     // quick return
-    if (n <= 0 || m <= 0) return 0;
+    if (m <= 0) {
+        return -1;
+    }
+    else if (n <= 0) {
+        return -2;
+    }
+    else if (m < n) {
+        return -3;
+    }
 
     // Allocates workspace
     WorkInfo workinfo = geqr2_worksize<T>(A, tau);
