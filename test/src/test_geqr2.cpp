@@ -75,7 +75,7 @@ TEMPLATE_TEST_CASE("geqr2 computes the QR factorization of a matrix",
         auto work = new_matrix(work_, n, n);
         for (idx_t j = 0; j < n; ++j)
             for (idx_t i = 0; i < n; ++i)
-                work(i, j) = static_cast<float>(0xABADBABE);
+                work(i, j) = static_cast<T>(0xABADBABE);
 
         // work receives the identity n*n
         laset(UPPER_TRIANGLE, static_cast<T>(0.0), static_cast<T>(1.0), work);
@@ -86,6 +86,6 @@ TEMPLATE_TEST_CASE("geqr2 computes the QR factorization of a matrix",
         // Compute ||Q'Q - I||_F
         real_t norm_orth_1 = lansy(FROB_NORM, UPPER_TRIANGLE, work);
 
-        CHECK((norm_orth_1 / normA) <= tol);
+        CHECK(norm_orth_1 <= tol);
     }
 }
