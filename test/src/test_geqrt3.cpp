@@ -1,4 +1,4 @@
-/// @file test_geqr2.cpp
+// @file test_geqrt3.cpp
 /// @author Henricus Bouwmeester, University of Colorado Denver, USA
 /// @author Benicio Ayala, Metropolitan State University of Denver, USA
 /// @author James Barton, Metropolitan State University of Denver, USA
@@ -16,7 +16,7 @@
 
 // Auxiliary routines
 #include "tlapack/blas/gemm.hpp"
-#include "tlapack/lapack/geqr2.hpp"
+#include "tlapack/lapack/geqrt3.hpp"
 #include "tlapack/lapack/lange.hpp"
 #include "tlapack/lapack/lansy.hpp"
 #include "tlapack/lapack/laset.hpp"
@@ -24,8 +24,8 @@
 
 using namespace tlapack;
 
-TEMPLATE_TEST_CASE("geqr2 computes the QR factorization of a matrix",
-                   "[geqr2]",
+TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
+                   "[geqrt3]",
                    TLAPACK_TYPES_TO_TEST)
 {
     using matrix_t = TestType;
@@ -65,7 +65,7 @@ TEMPLATE_TEST_CASE("geqr2 computes the QR factorization of a matrix",
         }
 
         // Compute the QR factorization of A
-        geqr2(A, tau);
+        geqrt3(A, );
 
         // Generates Q = H_1 H_2 ... H_n
         ung2r(A, tau);
