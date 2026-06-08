@@ -1,4 +1,4 @@
-// @file test_geqrt3.cpp
+/// @file test_geqrt3.cpp
 /// @author Henricus Bouwmeester, University of Colorado Denver, USA
 /// @author Benicio Ayala, Metropolitan State University of Denver, USA
 /// @author James Barton, Metropolitan State University of Denver, USA
@@ -15,17 +15,21 @@
 #include "testutils.hpp"
 
 // Auxiliary routines
+#include "tlapack/base/utils.hpp"
 #include "tlapack/blas/gemm.hpp"
 #include "tlapack/lapack/geqrt3.hpp"
+#include "tlapack/lapack/lacpy.hpp"
 #include "tlapack/lapack/lange.hpp"
 #include "tlapack/lapack/lansy.hpp"
+#include "tlapack/lapack/larf.hpp"
+#include "tlapack/lapack/larfg.hpp"
 #include "tlapack/lapack/laset.hpp"
 #include "tlapack/lapack/ung2r.hpp"
 
 using namespace tlapack;
 
-TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
-                   "[geqrt3]",
+TEMPLATE_TEST_CASE("geqr2 computes the QR factorization of a matrix",
+                   "[geqr2][qrt]",
                    TLAPACK_TYPES_TO_TEST)
 {
     using matrix_t = TestType;
@@ -49,43 +53,50 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
         const real_t eps = ulp<real_t>();
         const real_t tol = real_t(100 * n) * eps;
 
+        // Check that the factorization was successful
+        if (m <= 0 || n <= 0 || m < n) {
+            SKIP("m <= 0 || n <= 0 || m < n");
+        }
+
         std::vector<T> A_;
         auto A = new_matrix(A_, m, n);
+        std::vector<T> T_;
+        auto Tmatrix = new_matrix(T_, n, n);
         std::vector<T> tau(std::min(m, n));
 
         // Generate a random matrix in A
         mm.random(A);
+        mm.random(Tmatrix);
 
         // Compute the norm of A
-        auto normA = lange(FROB_NORM, A);
-
-        // Check that the factorization was successful
-        if (m <= 0 || n <= 0 || m < n) {
-            return;
-        }
+        auto normA = tlapack::lange(FROB_NORM, A);
 
         // Compute the QR factorization of A
-        geqrt3(A, );
+        tlapack::geqrt3<T>(A, Tmatrix);
 
+        
         // Generates Q = H_1 H_2 ... H_n
-        ung2r(A, tau);
+        tlapack::ung2r(A, tau);
 
         // Compute ||Q'Q - I||_F
         std::vector<T> work_;
         auto work = new_matrix(work_, n, n);
-        for (idx_t j = 0; j < n; ++j)
-            for (idx_t i = 0; i < n; ++i)
-                work(i, j) = static_cast<T>(0xABADBABE);
+        for (size_t j = 0; j < n; ++j)
+            for (size_t i = 0; i < n; ++i)
+                work(i, j) = static_cast<float>(0xABADBABE);
 
         // work receives the identity n*n
-        laset(UPPER_TRIANGLE, static_cast<T>(0.0), static_cast<T>(1.0), work);
+        tlapack::laset(tlapack::UPPER_TRIANGLE, static_cast<T>(0.0),
+                       static_cast<T>(1.0), work);
         // work receives Q'Q - I
-        gemm(Op::ConjTrans, Op::NoTrans, static_cast<T>(1.0), A, A,
-             static_cast<T>(-1.0), work);
+        tlapack::gemm(tlapack::Op::ConjTrans, tlapack::Op::NoTrans,
+                      static_cast<T>(1.0), A, A, static_cast<T>(-1.0), work);
 
         // Compute ||Q'Q - I||_F
-        real_t norm_orth_1 = lansy(FROB_NORM, UPPER_TRIANGLE, work);
+        real_t norm_orth_1 =
+            tlapack::lansy(tlapack::FROB_NORM, tlapack::UPPER_TRIANGLE, work);
 
-        CHECK(norm_orth_1 <= tol);
+        REQUIRE(std::isfinite(norm_orth_1));
+        CHECK((norm_orth_1 / normA) <= tol);
     }
 }
