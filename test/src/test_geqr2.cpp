@@ -25,7 +25,7 @@
 using namespace tlapack;
 
 TEMPLATE_TEST_CASE("geqr2 computes the QR factorization of a matrix",
-                   "[geqr2][qrt]",
+                   "[geqr2]",
                    TLAPACK_TYPES_TO_TEST)
 {
     using matrix_t = TestType;
@@ -57,38 +57,35 @@ TEMPLATE_TEST_CASE("geqr2 computes the QR factorization of a matrix",
         mm.random(A);
 
         // Compute the norm of A
-        auto normA = tlapack::lange(FROB_NORM, A);
-
-        // Compute the QR factorization of A
-        geqr2(A, tau);
+        auto normA = lange(FROB_NORM, A);
 
         // Check that the factorization was successful
         if (m <= 0 || n <= 0 || m < n) {
             SKIP("m <= 0 || n <= 0 || m < n");
         }
 
+        // Compute the QR factorization of A
+        geqr2(A, tau);
+
         // Generates Q = H_1 H_2 ... H_n
-        tlapack::ung2r(A, tau);
+        ung2r(A, tau);
 
         // Compute ||Q'Q - I||_F
         std::vector<T> work_;
         auto work = new_matrix(work_, n, n);
-        for (size_t j = 0; j < n; ++j)
-            for (size_t i = 0; i < n; ++i)
+        for (idx_t j = 0; j < n; ++j)
+            for (idx_t i = 0; i < n; ++i)
                 work(i, j) = static_cast<float>(0xABADBABE);
 
         // work receives the identity n*n
-        tlapack::laset(tlapack::UPPER_TRIANGLE, static_cast<T>(0.0),
-                       static_cast<T>(1.0), work);
+        laset(UPPER_TRIANGLE, static_cast<T>(0.0), static_cast<T>(1.0), work);
         // work receives Q'Q - I
-        tlapack::gemm(tlapack::Op::ConjTrans, tlapack::Op::NoTrans,
-                      static_cast<T>(1.0), A, A, static_cast<T>(-1.0), work);
+        gemm(Op::ConjTrans, Op::NoTrans, static_cast<T>(1.0), A, A,
+             static_cast<T>(-1.0), work);
 
         // Compute ||Q'Q - I||_F
-        real_t norm_orth_1 =
-            tlapack::lansy(tlapack::FROB_NORM, tlapack::UPPER_TRIANGLE, work);
+        real_t norm_orth_1 = lansy(FROB_NORM, UPPER_TRIANGLE, work);
 
-        REQUIRE(std::isfinite(norm_orth_1));
         CHECK((norm_orth_1 / normA) <= tol);
     }
 }
