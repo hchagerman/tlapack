@@ -28,8 +28,8 @@
 
 using namespace tlapack;
 
-TEMPLATE_TEST_CASE("geqr2 computes the QR factorization of a matrix",
-                   "[geqr2][qrt]",
+TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
+                   "[geqrt3][qrt]",
                    TLAPACK_TYPES_TO_TEST)
 {
     using matrix_t = TestType;
@@ -55,7 +55,7 @@ TEMPLATE_TEST_CASE("geqr2 computes the QR factorization of a matrix",
 
         // Check that the factorization was successful
         if (m <= 0 || n <= 0 || m < n) {
-            SKIP("m <= 0 || n <= 0 || m < n");
+            return;
         }
 
         std::vector<T> A_;
