@@ -97,7 +97,7 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
                                                 tlapack::UPPER_TRIANGLE, work);
 
             REQUIRE(std::isfinite(norm_orth_1));
-            CHECK((norm_orth_1 / normA) <= tol);
+            CHECK((norm_orth_1 ) <= tol);
         }
     }
 }
