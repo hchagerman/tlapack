@@ -52,10 +52,10 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
     {
         const real_t eps = ulp<real_t>();
         const real_t tol = real_t(100 * n) * eps;
-
+        real_t norm_orth_1;
         // Check that the factorization was successful
         if (m <= 0 || n <= 0 || m < n) {
-            SUCCEED("skipping");
+            norm_orth_1 = real_t(0.0);
         }
         else {
             std::vector<T> A_;
@@ -93,11 +93,11 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
                           work);
 
             // Compute ||Q'Q - I||_F
-            real_t norm_orth_1 = tlapack::lansy(tlapack::FROB_NORM,
-                                                tlapack::UPPER_TRIANGLE, work);
+            norm_orth_1 = tlapack::lansy(tlapack::FROB_NORM,
+                                         tlapack::UPPER_TRIANGLE, work);
 
             REQUIRE(std::isfinite(norm_orth_1));
-            CHECK((norm_orth_1 ) <= tol);
         }
+        CHECK((norm_orth_1) <= tol);
     }
 }
