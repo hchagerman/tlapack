@@ -53,27 +53,30 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
         const real_t eps = ulp<real_t>();
         const real_t tol = real_t(100 * n) * eps;
         real_t norm_orth_1;
+        real_t normA;
+
+        std::vector<T> A_;
+        auto A = new_matrix(A_, m, n);
+        std::vector<T> T_;
+        auto Tmatrix = new_matrix(T_, n, n);
+        std::vector<T> tau(std::min(m, n));
+
+        // Generate a random matrix in A
+        mm.random(A);
+        mm.random(Tmatrix);
+
         // Check that the factorization was successful
         if (m <= 0 || n <= 0 || m < n) {
             norm_orth_1 = real_t(0.0);
         }
         else {
-            std::vector<T> A_;
-            auto A = new_matrix(A_, m, n);
-            std::vector<T> T_;
-            auto Tmatrix = new_matrix(T_, n, n);
-            std::vector<T> tau(std::min(m, n));
-
-            // Generate a random matrix in A
-            mm.random(A);
-            mm.random(Tmatrix);
-
-            // Compute the norm of A
-            auto normA = tlapack::lange(FROB_NORM, A);
-
             // Compute the QR factorization of A
             tlapack::geqrt3<T>(A, Tmatrix);
 
+            for (idx_t i = 0; i < n; ++i) {
+                tau[i] = Tmatrix(i, i);
+            }
+            tlapack::geqr2(A, tau);
             // Generates Q = H_1 H_2 ... H_n
             tlapack::ung2r(A, tau);
 
@@ -95,9 +98,8 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
             // Compute ||Q'Q - I||_F
             norm_orth_1 = tlapack::lansy(tlapack::FROB_NORM,
                                          tlapack::UPPER_TRIANGLE, work);
-
-            REQUIRE(std::isfinite(norm_orth_1));
         }
-        CHECK((norm_orth_1) <= tol);
+
+        CHECK(norm_orth_1 <= tol);
     }
 }
