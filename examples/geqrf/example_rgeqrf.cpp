@@ -102,7 +102,7 @@ void run(size_t m, size_t n)
     auto startQR = std::chrono::high_resolution_clock::now();
     {
         // QR factorization
-        tlapack::geqr2(Q, tau);
+        tlapack::geqrf(Q, tau);
 
         // Save the R matrix
         tlapack::lacpy(tlapack::UPPER_TRIANGLE, Q, R);
