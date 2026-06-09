@@ -59,12 +59,16 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
         auto A = new_matrix(A_, m, n);
         std::vector<T> T_;
         auto Tmatrix = new_matrix(T_, n, n);
+        std::vector<T> Q_;
+        auto Q = new_matrix(Q_, m, n);
         std::vector<T> tau(std::min(m, n));
 
         // Generate a random matrix in A
         mm.random(A);
         mm.random(Tmatrix);
+        mm.random(Q);
 
+        tlapack::lacpy(tlapack::Uplo::General, A, Q);
         // Check that the factorization was successful
         if (m <= 0 || n <= 0 || m < n) {
             norm_orth_1 = real_t(0.0);
@@ -73,10 +77,10 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
             // Compute the QR factorization of A
             tlapack::geqrt3<T>(A, Tmatrix);
 
+            auto normA = tlapack::lange(tlapack::FROB_NORM, A);
             for (idx_t i = 0; i < n; ++i) {
                 tau[i] = Tmatrix(i, i);
             }
-            tlapack::geqr2(A, tau);
             // Generates Q = H_1 H_2 ... H_n
             tlapack::ung2r(A, tau);
 
