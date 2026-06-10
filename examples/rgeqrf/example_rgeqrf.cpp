@@ -1,4 +1,4 @@
-//// @file example_rgeqrf.cpp
+/// @file example_rgeqrf.cpp
 /// @author Weslley S Pereira, University of Colorado Denver, USA
 //
 // Copyright (c) 2025, University of Colorado Denver. All rights reserved.
@@ -46,7 +46,7 @@ void printMatrix(const matrix_t& A)
 
 //------------------------------------------------------------------------------
 template <typename T>
-void run(size_t m, size_t n, size_t nb)
+void run(size_t m, size_t n)
 {
     using std::size_t;
     using matrix_t = tlapack::LegacyMatrix<T>;
@@ -57,7 +57,10 @@ void run(size_t m, size_t n, size_t nb)
     tlapack::Create<matrix_t> new_matrix;
 
     // Turn it off if m or n are large
-    bool verbose = true;
+    bool verbose = false;
+
+    // Block size
+    idx_t nb = n;
 
     // Arrays
     std::vector<T> tau(n);
@@ -114,14 +117,9 @@ void run(size_t m, size_t n, size_t nb)
     auto startQR = std::chrono::high_resolution_clock::now();
     {
         for (idx_t k = 0; k < n; k += nb) {
-            std::cout << "k = " << k << " k + nb = " << k + nb << " n = " << n
-                      << std::endl;
-            std::cout << "loop!" << std::endl;
-            std::cout << std::endl;
-
-            if (k + nb >= n) {
-                nb = n - 1 - k;
-                std::cout << "Change! k + nb = " << k + nb << std::endl;
+            // Cut block size in half with each loop if not equal to 1
+            if (nb != 1) {
+                nb /= 2;
             }
 
             // Slice Q and T
@@ -163,7 +161,7 @@ void run(size_t m, size_t n, size_t nb)
             }
 
             tlapack::gemm(tlapack::Op::NoTrans, tlapack::Op::NoTrans,
-                          static_cast<T>(-1.0), A21, T12, static_cast<T>(1.0),
+                          static_cast<T>(1.0), A21, T12, static_cast<T>(-1.0),
                           A22);
         }
         // After this point is creating final products of Q and R
@@ -178,6 +176,11 @@ void run(size_t m, size_t n, size_t nb)
         //
         // Save the R matrix
         tlapack::lacpy(tlapack::UPPER_TRIANGLE, Q, R);
+
+        // Fill tau with the diagonal of the T matrix
+        for (idx_t i = 0; i < n; ++i) {
+            tau[i] = Tmatrix(i, i);
+        }
 
         // Generates Q = H_1 H_2 ... H_n
         tlapack::ung2r(Q, tau);
@@ -273,9 +276,8 @@ int main(int argc, char** argv)
     m = (argc < 2) ? 7 : atoi(argv[1]);
     n = (argc < 3) ? 5 : atoi(argv[2]);
 
-    m = 4;
-    n = 4;
-    nb = 2;
+    m = 10;
+    n = 7;
 
     srand(3);  // Init random seed
 
@@ -283,15 +285,15 @@ int main(int argc, char** argv)
     std::cout << std::scientific << std::showpos;
 
     printf("run< float  >( %d, %d )", m, n);
-    run<float>(m, n, nb);
+    run<float>(m, n);
     printf("-----------------------\n");
 
     printf("run< double >( %d, %d )", m, n);
-    run<double>(m, n, nb);
+    run<double>(m, n);
     printf("-----------------------\n");
 
     printf("run< long double >( %d, %d )", m, n);
-    run<long double>(m, n, nb);
+    run<long double>(m, n);
     printf("-----------------------\n");
 
     return 0;
