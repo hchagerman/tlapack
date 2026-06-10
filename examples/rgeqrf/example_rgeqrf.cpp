@@ -1,4 +1,4 @@
-/// @file example_rgeqrf.cpp
+//// @file example_rgeqrf.cpp
 /// @author Weslley S Pereira, University of Colorado Denver, USA
 //
 // Copyright (c) 2025, University of Colorado Denver. All rights reserved.
@@ -11,9 +11,11 @@
 #include <tlapack/plugins/legacyArray.hpp>
 
 // <T>LAPACK
+#include <tlapack/blas/gemm.hpp>
 #include <tlapack/blas/syrk.hpp>
 #include <tlapack/blas/trmm.hpp>
 #include <tlapack/lapack/geqr2.hpp>
+#include <tlapack/lapack/geqrt3.hpp>
 #include <tlapack/lapack/lacpy.hpp>
 #include <tlapack/lapack/lange.hpp>
 #include <tlapack/lapack/lansy.hpp>
@@ -43,46 +45,56 @@ void printMatrix(const matrix_t& A)
 }
 
 //------------------------------------------------------------------------------
-template <typename real_t>
-void run(size_t m, size_t n)
+template <typename T>
+void run(size_t m, size_t n, size_t nb)
 {
     using std::size_t;
-    using matrix_t = tlapack::LegacyMatrix<real_t>;
+    using matrix_t = tlapack::LegacyMatrix<T>;
     using idx_t = tlapack::size_type<matrix_t>;
+    using range = tlapack::pair<idx_t, idx_t>;
 
     // Functors for creating new matrices
     tlapack::Create<matrix_t> new_matrix;
 
     // Turn it off if m or n are large
-    bool verbose = false;
+    bool verbose = true;
 
     // Arrays
-    std::vector<real_t> tau(n);
+    std::vector<T> tau(n);
 
     // Matrices
-    std::vector<real_t> A_;
+    std::vector<T> A_;
     auto A = new_matrix(A_, m, n);
-    std::vector<real_t> R_;
+    std::vector<T> R_;
     auto R = new_matrix(R_, n, n);
-    std::vector<real_t> Q_;
+    std::vector<T> Q_;
     auto Q = new_matrix(Q_, m, n);
+    std::vector<T> Tmatrix_;
+    auto Tmatrix = new_matrix(Tmatrix_, m, n);
 
     // Initialize arrays with junk
     for (idx_t j = 0; j < n; ++j) {
         for (idx_t i = 0; i < m; ++i) {
-            A(i, j) = static_cast<float>(0xDEADBEEF);
-            Q(i, j) = static_cast<float>(0xCAFED00D);
+            A(i, j) = T(static_cast<float>(0xDEADBEEF));
+            Q(i, j) = T(static_cast<float>(0xCAFED00D));
         }
         for (idx_t i = 0; i < n; ++i) {
-            R(i, j) = static_cast<float>(0xFEE1DEAD);
+            Tmatrix(i, j) = T(static_cast<float>(0XFEE1DEAD));
+            R(i, j) = T(static_cast<float>(0xFEE1DEAD));
         }
-        tau[j] = static_cast<float>(0xFFBADD11);
+        tau[j] = T(static_cast<float>(0xFFBADD11));
     }
 
     // Generate a random matrix in A
     for (idx_t j = 0; j < n; ++j)
         for (idx_t i = 0; i < m; ++i)
-            A(i, j) = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+            if constexpr (tlapack::is_complex<T>)
+                A(i, j) = T(
+                    static_cast<float>(rand()) / static_cast<float>(RAND_MAX),
+                    static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+            else
+                A(i, j) = T(static_cast<float>(rand()) /
+                            static_cast<float>(RAND_MAX));
 
     // Frobenius norm of A
     auto normA = tlapack::lange(tlapack::FROB_NORM, A);
@@ -101,9 +113,69 @@ void run(size_t m, size_t n)
     // Record start time
     auto startQR = std::chrono::high_resolution_clock::now();
     {
-        // QR factorization
-        tlapack::geqr2(Q, tau);
+        for (idx_t k = 0; k < n; k += nb) {
+            std::cout << "k = " << k << " k + nb = " << k + nb << " n = " << n
+                      << std::endl;
+            std::cout << "loop!" << std::endl;
+            std::cout << std::endl;
 
+            if (k + nb >= n) {
+                nb = n - 1 - k;
+                std::cout << "Change! k + nb = " << k + nb << std::endl;
+            }
+
+            // Slice Q and T
+            auto A1 = tlapack::slice(Q, range(k, m), range(k, k + nb));
+            auto A11 = tlapack::slice(Q, range(k, k + nb), range(k, k + nb));
+            auto A21 = tlapack::slice(Q, range(k + nb, m), range(k, k + nb));
+            auto A12 = tlapack::slice(Q, range(k, k + nb), range(k + nb, n));
+            auto A22 = tlapack::slice(Q, range(k + nb, m), range(k + nb, n));
+            auto T11 =
+                tlapack::slice(Tmatrix, range(k, k + nb), range(k, k + nb));
+            auto T12 =
+                tlapack::slice(Tmatrix, range(k, k + nb), range(k + nb, n));
+
+            // QR factorization
+            tlapack::geqrt3<T>(A1, T11);
+
+            tlapack::lacpy(tlapack::Uplo::General, A12, T12);
+
+            tlapack::trmm(tlapack::Side::Left, tlapack::Uplo::Lower,
+                          tlapack::Op::ConjTrans, tlapack::Diag::Unit,
+                          static_cast<T>(1.0), A11, T12);
+
+            tlapack::gemm(tlapack::Op::ConjTrans, tlapack::Op::NoTrans,
+                          static_cast<T>(1.0), A21, A22, static_cast<T>(1.0),
+                          T12);
+
+            tlapack::trmm(tlapack::Side::Left, tlapack::Uplo::Upper,
+                          tlapack::Op::ConjTrans, tlapack::Diag::NonUnit,
+                          static_cast<T>(1.0), T11, T12);
+
+            tlapack::trmm(tlapack::Side::Left, tlapack::Uplo::Lower,
+                          tlapack::Op::NoTrans, tlapack::Diag::Unit,
+                          static_cast<T>(1.0), A11, T12);
+
+            for (idx_t i = 0; i < nb; ++i) {
+                for (idx_t j = 0; j < n - k - nb; ++j) {
+                    A12(i, j) -= T12(i, j);
+                }
+            }
+
+            tlapack::gemm(tlapack::Op::NoTrans, tlapack::Op::NoTrans,
+                          static_cast<T>(-1.0), A21, T12, static_cast<T>(1.0),
+                          A22);
+        }
+        // After this point is creating final products of Q and R
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
         // Save the R matrix
         tlapack::lacpy(tlapack::UPPER_TRIANGLE, Q, R);
 
@@ -131,12 +203,12 @@ void run(size_t m, size_t n)
         printMatrix(R);
     }
 
-    real_t norm_orth_1, norm_repres_1;
+    T norm_orth_1, norm_repres_1;
 
     // 2) Compute ||Q'Q - I||_F
 
     {
-        std::vector<real_t> work_;
+        std::vector<T> work_;
         auto work = new_matrix(work_, n, n);
         for (idx_t j = 0; j < n; ++j)
             for (idx_t i = 0; i < n; ++i)
@@ -161,7 +233,7 @@ void run(size_t m, size_t n)
     // 3) Compute ||QR - A||_F / ||A||_F
 
     {
-        std::vector<real_t> work_;
+        std::vector<T> work_;
         auto work = new_matrix(work_, m, n);
         for (idx_t j = 0; j < n; ++j)
             for (idx_t i = 0; i < m; ++i)
@@ -195,11 +267,15 @@ void run(size_t m, size_t n)
 //------------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
-    int m, n;
+    int m, n, nb;
 
     // Default arguments
     m = (argc < 2) ? 7 : atoi(argv[1]);
     n = (argc < 3) ? 5 : atoi(argv[2]);
+
+    m = 4;
+    n = 4;
+    nb = 2;
 
     srand(3);  // Init random seed
 
@@ -207,15 +283,15 @@ int main(int argc, char** argv)
     std::cout << std::scientific << std::showpos;
 
     printf("run< float  >( %d, %d )", m, n);
-    run<float>(m, n);
+    run<float>(m, n, nb);
     printf("-----------------------\n");
 
     printf("run< double >( %d, %d )", m, n);
-    run<double>(m, n);
+    run<double>(m, n, nb);
     printf("-----------------------\n");
 
     printf("run< long double >( %d, %d )", m, n);
-    run<long double>(m, n);
+    run<long double>(m, n, nb);
     printf("-----------------------\n");
 
     return 0;
