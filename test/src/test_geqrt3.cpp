@@ -22,6 +22,7 @@
 #include "tlapack/lapack/lange.hpp"
 #include "tlapack/lapack/lansy.hpp"
 #include "tlapack/lapack/larf.hpp"
+#include "tlapack/lapack/larfb.hpp"
 #include "tlapack/lapack/larfg.hpp"
 #include "tlapack/lapack/laset.hpp"
 #include "tlapack/lapack/ung2r.hpp"
@@ -52,7 +53,7 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
     {
         const real_t eps = ulp<real_t>();
         const real_t tol = real_t(100 * n) * eps;
-        real_t norm_orth;
+        real_t norm_repres;
         real_t normA;
 
         std::vector<T> A_;
@@ -73,12 +74,6 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
             // Compute the QR factorization of A
             tlapack::geqrt3(A, Tmatrix);
 
-            for (idx_t i = 0; i < n; ++i) {
-                tau[i] = Tmatrix(i, i);
-            }
-            // Generates Q = H_1 H_2 ... H_n
-            tlapack::ung2r(A, tau);
-
             // Compute ||QᴴQ - I||ᶠ
             std::vector<T> work_;
             auto work = new_matrix(work_, n, n);
@@ -97,8 +92,30 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
             // Compute ||QᴴQ - I||ᶠ
             norm_orth = tlapack::lansy(tlapack::FROB_NORM,
                                        tlapack::UPPER_TRIANGLE, work);
+
+            // 3) Compute ||QR - A||ᶠ / ||A||ᶠ
+
+            std::vector<T> work_;
+
+            auto work = new_matrix(work_, m, n);
+            for (idx_t j = 0; j < n; ++j)
+                for (idx_t i = 0; i < m; ++i)
+                    work(i, j) = static_cast<float>(0);
+            // Copy Q to work
+            tlapack::lacpy(tlapack::GENERAL, Q, work);
+
+            tlapack::trmm(tlapack::Side::Right, tlapack::Uplo::Upper,
+                          tlapack::Op::NoTrans, tlapack::Diag::NonUnit,
+                          static_cast<T>(1.0), R, work);
+
+            for (idx_t j = 0; j < n; ++j)
+                for (idx_t i = 0; i < m; ++i)
+                    work(i, j) -= A(i, j);
+
+            norm_repres = tlapack::lange(tlapack::FROB_NORM, work) / normA;
         }
 
+        CHECK(norm_repres <= tol);
         CHECK(norm_orth <= tol);
     }
 }
