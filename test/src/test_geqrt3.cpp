@@ -52,7 +52,7 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
     {
         const real_t eps = ulp<real_t>();
         const real_t tol = real_t(100 * n) * eps;
-        real_t norm_orth_1;
+        real_t norm_orth;
         real_t normA;
 
         std::vector<T> A_;
@@ -64,13 +64,14 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
         // Generate a random matrix in A
         mm.random(A);
         mm.random(Tmatrix);
+
         // Check that the factorization was successful
         if (m <= 0 || n <= 0 || m < n) {
-            norm_orth_1 = real_t(0.0);
+            norm_orth = real_t(0.0);
         }
         else {
             // Compute the QR factorization of A
-            tlapack::geqrt3<T>(A, Tmatrix);
+            tlapack::geqrt3(A, Tmatrix);
 
             for (idx_t i = 0; i < n; ++i) {
                 tau[i] = Tmatrix(i, i);
@@ -78,7 +79,7 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
             // Generates Q = H_1 H_2 ... H_n
             tlapack::ung2r(A, tau);
 
-            // Compute ||Q'Q - I||_F
+            // Compute ||QᴴQ - I||ᶠ
             std::vector<T> work_;
             auto work = new_matrix(work_, n, n);
             for (size_t j = 0; j < n; ++j)
@@ -88,16 +89,16 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
             // work receives the identity n*n
             tlapack::laset(tlapack::UPPER_TRIANGLE, static_cast<T>(0.0),
                            static_cast<T>(1.0), work);
-            // work receives Q'Q - I
+            // work receives QᴴQ - I
             tlapack::gemm(tlapack::Op::ConjTrans, tlapack::Op::NoTrans,
                           static_cast<T>(1.0), A, A, static_cast<T>(-1.0),
                           work);
 
-            // Compute ||Q'Q - I||_F
-            norm_orth_1 = tlapack::lansy(tlapack::FROB_NORM,
-                                         tlapack::UPPER_TRIANGLE, work);
+            // Compute ||QᴴQ - I||ᶠ
+            norm_orth = tlapack::lansy(tlapack::FROB_NORM,
+                                       tlapack::UPPER_TRIANGLE, work);
         }
 
-        CHECK(norm_orth_1 <= tol);
+        CHECK(norm_orth <= tol);
     }
 }
