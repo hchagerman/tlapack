@@ -20,18 +20,15 @@
 #include "tlapack/lapack/geqrt3.hpp"
 #include "tlapack/lapack/lacpy.hpp"
 #include "tlapack/lapack/lange.hpp"
-#include "tlapack/lapack/lansy.hpp"
-#include "tlapack/lapack/larf.hpp"
 #include "tlapack/lapack/larfb.hpp"
-#include "tlapack/lapack/larfg.hpp"
 #include "tlapack/lapack/laset.hpp"
-#include "tlapack/lapack/ung2r.hpp"
 
 using namespace tlapack;
 
-TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
-                   "[geqrt3][qrt]",
-                   TLAPACK_TYPES_TO_TEST)
+TEMPLATE_TEST_CASE(
+    "geqrt3 recursively computes the QR factorization of a matrix",
+    "[geqrt3]",
+    TLAPACK_TYPES_TO_TEST)
 {
     using matrix_t = TestType;
     using T = type_t<matrix_t>;
@@ -51,13 +48,13 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
     const real_t tol = real_t(100 * n) * eps;
 
     // Matrices
-    // original a matrix
+    // original matrix A
     std::vector<T> A_;
     auto A = new_matrix(A_, m, n);
     // upper triangular
     std::vector<T> R_;
     auto R = new_matrix(R_, n, n);
-    // household vectors
+    // Householder vectors
     std::vector<T> V_;
     auto V = new_matrix(V_, m, n);
     // A copy
@@ -65,12 +62,9 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
     auto Q = new_matrix(Q_, m, n);
     std::vector<T> T_;
     auto Tmatrix = new_matrix(T_, n, n);
-    // Compute ||Qᴴ Q - I||ꜰ
+    // Used to compute ||Qᴴ Q - I||ꜰ
     std::vector<T> work_;
     auto work = new_matrix(work_, n, n);
-    // Compute ||QR - A||ᶠ / ||A||ᶠ
-    std::vector<T> workQR_;
-    auto workQR = new_matrix(workQR_, m, n);
 
     real_t norm_orth = real_t(0.0);
     real_t normA = real_t(0.0);
@@ -80,56 +74,46 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
         // Generate a random matrix in A & T
         mm.random(A);
 
-        normA = tlapack::lange(tlapack::FROB_NORM, A);
+        normA = lange(FROB_NORM, A);
         // Copy A to Q
-        tlapack::lacpy(tlapack::GENERAL, A, Q);
+        lacpy(GENERAL, A, Q);
 
-        tlapack::geqrt3(Q, Tmatrix);
+        // 1) Compute the QR factorization of A
+        geqrt3(Q, Tmatrix);
 
         // 2) Compute ||Qᴴ Q - I||ꜰ
 
-        // Copy Upper Triangle of A into R
-        tlapack::lacpy(tlapack::Uplo::Upper, Q, R);
+        // Copy Upper Triangle of Q into R
+        lacpy(Uplo::Upper, Q, R);
 
         // Copy the Householder vectors into V
-        tlapack::lacpy(tlapack::GENERAL, Q, V);
+        lacpy(GENERAL, Q, V);
 
-        // Make Q the indentity matrix
-        for (idx_t j = 0; j < n; ++j)
-            for (idx_t i = 0; i < m; ++i)
-                Q(i, j) = static_cast<T>(0.0);
+        // creates the identity matrix in Q
+        laset(GENERAL, static_cast<T>(0.0), static_cast<T>(1.0), Q);
 
-        for (idx_t j = 0; j < std::min(m, n); ++j)
-            Q(j, j) = static_cast<T>(1.0);
-
-        tlapack::larfb(tlapack::Side::Left, tlapack::Op::NoTrans,
-                       tlapack::Direction::Forward, tlapack::StoreV::Columnwise,
-                       V, Tmatrix, Q);
-        // Compute ||Qᴴ Q - I||ꜰ
+        // Apply the Householder reflectors
+        larfb(Side::Left, Op::NoTrans, Direction::Forward, StoreV::Columnwise,
+              V, Tmatrix, Q);
 
         // work receives the identity n*n
-        tlapack::laset(tlapack::GENERAL, static_cast<T>(0.0),
-                       static_cast<T>(1.0), work);
+        laset(GENERAL, static_cast<T>(0.0), static_cast<T>(1.0), work);
         // work receives Qᴴ Q - I
-        tlapack::gemm(tlapack::Op::ConjTrans, tlapack::Op::NoTrans,
-                      static_cast<T>(1.0), Q, Q, static_cast<T>(-1.0), work);
+        gemm(Op::ConjTrans, Op::NoTrans, static_cast<T>(1.0), Q, Q,
+             static_cast<T>(-1.0), work);
 
-        norm_orth = tlapack::lange(tlapack::FROB_NORM, work);
+        norm_orth = lange(FROB_NORM, work);
 
-        // 3) Compute ||QR - A||ᶠ / ||A||ᶠ
+        // 3) Compute ||QR - A||ꜰ / ||A||ꜰ
 
-        // Copy Q to work
-        tlapack::lacpy(tlapack::GENERAL, Q, workQR);
-
-        tlapack::trmm(tlapack::Side::Right, tlapack::Uplo::Upper,
-                      tlapack::Op::NoTrans, tlapack::Diag::NonUnit,
-                      static_cast<T>(1.0), R, workQR);
+        trmm(Side::Right, Uplo::Upper, Op::NoTrans, Diag::NonUnit,
+             static_cast<T>(1.0), R, Q);
 
         for (idx_t j = 0; j < n; ++j)
             for (idx_t i = 0; i < m; ++i)
-                workQR(i, j) -= A(i, j);
+                Q(i, j) -= A(i, j);
 
-        norm_repres = tlapack::lange(tlapack::FROB_NORM, workQR) / normA;
+        norm_repres = lange(FROB_NORM, Q) / normA;
     }
     CHECK(norm_repres <= tol);
     CHECK(norm_orth <= tol);
