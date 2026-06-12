@@ -14,7 +14,6 @@
 #include "testutils.hpp"
 
 // Auxiliary routines
-#include "tlapack/base/utils.hpp"
 #include "tlapack/blas/gemm.hpp"
 #include "tlapack/lapack/geqrt3.hpp"
 #include "tlapack/lapack/lacpy.hpp"
