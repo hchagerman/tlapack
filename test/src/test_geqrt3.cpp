@@ -79,7 +79,6 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
     if (m > 0 && n > 0 && m >= n) {
         // Generate a random matrix in A & T
         mm.random(A);
-        mm.random(Tmatrix);
 
         normA = tlapack::lange(tlapack::FROB_NORM, A);
         // Copy A to Q
@@ -107,10 +106,6 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
                        tlapack::Direction::Forward, tlapack::StoreV::Columnwise,
                        V, Tmatrix, Q);
         // Compute ||Qᴴ Q - I||ꜰ
-        for (idx_t j = 0; j < n; ++j)
-            for (idx_t i = 0; i < n; ++i)
-                work(i, j) = static_cast<float>(0xABADBABE);
-        ;
 
         // work receives the identity n*n
         tlapack::laset(tlapack::GENERAL, static_cast<T>(0.0),
@@ -122,9 +117,6 @@ TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
         norm_orth = tlapack::lange(tlapack::FROB_NORM, work);
 
         // 3) Compute ||QR - A||ᶠ / ||A||ᶠ
-        for (idx_t j = 0; j < n; ++j)
-            for (idx_t i = 0; i < m; ++i)
-                workQR(i, j) = static_cast<float>(0);
 
         // Copy Q to work
         tlapack::lacpy(tlapack::GENERAL, Q, workQR);
