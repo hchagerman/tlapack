@@ -32,158 +32,113 @@ using namespace tlapack;
 TEMPLATE_TEST_CASE("geqrt3 computes the QR factorization of a matrix",
                    "[geqrt3][qrt]",
                    TLAPACK_TYPES_TO_TEST)
-
-work(i, j) = static_cast<float>(0xABADBABE);
-
-// work receives the identity n*n
-tlapack::laset(tlapack::UPPER_TRIANGLE,
-               static_cast<T>(0.0),
-               static_cast<T>(1.0),
-               work);
-// work receives QᴴQ - I
-tlapack::gemm(tlapack::Op::ConjTrans,
-              tlapack::Op::NoTrans,
-              static_cast<T>(1.0),
-              A,
-              A,
-              static_cast<T>(-1.0),
-              work);
-
-// Compute ||QᴴQ - I||ᶠ
-norm_orth = tlapack::lansy(tlapack::FROB_NORM, tlapack::UPPER_TRIANGLE, work);
-
-// 3) Compute ||QR - A||ᶠ / ||A||ᶠ
-
-for (idx_t j = 0; j < n; ++j)
-    for (idx_t i = 0; i < m; ++i)
-        work(i, j) = static_cast<float>(0);
-// Copy Q to work
-tlapack::lacpy(tlapack::GENERAL, A, work);
-
-tlapack::trmm(tlapack::Side::Right,
-              tlapack::Uplo::Upper,
-              tlapack::Op::NoTrans,
-              tlapack::Diag::NonUnit,
-              static_cast<T>(1.0),
-              A,
-              work);
-
-for (idx_t j = 0; j < n; ++j)
-    for (idx_t i = 0; i < m; ++i)
-        work(i, j) -= A(i, j);
-
-normA = tlapack::lange(tlapack::FROB_NORM, work) / normA;
-}
-
-CHECK(normA <= tol);
-CHECK(norm_orth <= tol);
-}
-}
-
-using matrix_t = TestType;
-using T = type_t<matrix_t>;
-using idx_t = size_type<matrix_t>;
-typedef real_type<T> real_t;
-
-// Functor
-Create<matrix_t> new_matrix;
-
-// Matrices
-std::vector<T> A_;
-auto A = new_matrix(A_, m, n);
-std::vector<T> R_;
-auto R = new_matrix(R_, n, n);
-std::vector<T> V_;
-auto V = new_matrix(V_, m, n);
-std::vector<T> Q_;
-auto Q = new_matrix(Q_, m, n);
-std::vector<T> T_;
-auto Tmatrix = new_matrix(T_, n, n);
-
-// Initialize arrays with junk
-for (idx_t j = 0; j < n; ++j) {
-    for (idx_t i = 0; i < m; ++i) {
-        A(i, j) = T(static_cast<float>(0xDEADBEEF));
-        Q(i, j) = T(static_cast<float>(0xCAFED00D));
-    }
-    for (idx_t i = 0; i < n; ++i) {
-        Tmatrix(i, j) = T(static_cast<float>(0XFEE1DEAD));
-        R(i, j) = T(static_cast<float>(0xFEE1DEAD));
-    }
-}
-// Generate a random matrix in A & T
-mm.random(A);
-mm.random(T);
-mm.random(Q);
-mm.random(R);
-mm.random(Tmatrix);
-
-// Copy A to Q
-tlapack::lacpy(tlapack::GENERAL, A, Q);
-
-tlapack::geqrt3(Q, Tmatrix);
-
-T norm_orth, norm_repres;
-
-// 2) Compute ||Qᴴ Q - I||ꜰ
-
 {
-    // Copy Upper Triangle of A into R
-    tlapack::lacpy(tlapack::Uplo::Upper, Q, R);
+    using matrix_t = TestType;
+    using T = type_t<matrix_t>;
+    using idx_t = size_type<matrix_t>;
+    typedef real_type<T> real_t;
 
-    // Copy the Householder vectors into V
-    tlapack::lacpy(tlapack::GENERAL, Q, V);
+    // Functor
+    Create<matrix_t> new_matrix;
 
-    // Make Q the indentity matrix
-    for (idx_t j = 0; j < n; ++j)
-        for (idx_t i = 0; i < m; ++i)
-            Q(i, j) = static_cast<T>(0.0);
+    MatrixMarket mm;
 
-    for (idx_t j = 0; j < std::min(m, n); ++j)
-        Q(j, j) = static_cast<T>(1.0);
+    idx_t m, n;
+    m = GENERATE(5, 7, 63, 199, 512);
+    n = GENERATE(2, 3, 5, 8, 16, 21, 51, 128);
 
-    tlapack::larfb(tlapack::Side::Left, tlapack::Op::NoTrans,
-                   tlapack::Direction::Forward, tlapack::StoreV::Columnwise, V,
-                   Tmatrix, Q);
+    const real_t eps = ulp<real_t>();
+    const real_t tol = real_t(100 * n) * eps;
 
+    // Matrices
+    // original a matrix
+    std::vector<T> A_;
+    auto A = new_matrix(A_, m, n);
+    // upper triangular
+    std::vector<T> R_;
+    auto R = new_matrix(R_, n, n);
+    // household vectors
+    std::vector<T> V_;
+    auto V = new_matrix(V_, m, n);
+    // A copy
+    std::vector<T> Q_;
+    auto Q = new_matrix(Q_, m, n);
+    std::vector<T> T_;
+    auto Tmatrix = new_matrix(T_, n, n);
+    // Compute ||Qᴴ Q - I||ꜰ
     std::vector<T> work_;
     auto work = new_matrix(work_, n, n);
-    for (idx_t j = 0; j < n; ++j)
-        for (idx_t i = 0; i < n; ++i)
-            work(i, j) = static_cast<float>(0xABADBABE);
-    ;
+    // Compute ||QR - A||ᶠ / ||A||ᶠ
+    std::vector<T> workQR_;
+    auto workQR = new_matrix(workQR_, m, n);
 
-    // work receives the identity n*n
-    tlapack::laset(tlapack::GENERAL, static_cast<T>(0.0), static_cast<T>(1.0),
-                   work);
-    // work receives Qᴴ Q - I
-    tlapack::gemm(tlapack::Op::ConjTrans, tlapack::Op::NoTrans,
-                  static_cast<T>(1.0), Q, Q, static_cast<T>(-1.0), work);
+    real_t norm_orth = real_t(0.0);
+    real_t normA = real_t(0.0);
+    real_t norm_repres = real_t(0.0);
 
-    // Compute ||Qᴴ Q - I||ꜰ
-    norm_orth = tlapack::lange(tlapack::FROB_NORM, work);
+    if (m > 0 && n > 0 && m >= n) {
+        // Generate a random matrix in A & T
+        mm.random(A);
+        mm.random(Tmatrix);
 
-    // 3) Compute ||QR - A||ᶠ / ||A||ᶠ
-    std::vector<T> work_;
+        normA = tlapack::lange(tlapack::FROB_NORM, A);
+        // Copy A to Q
+        tlapack::lacpy(tlapack::GENERAL, A, Q);
 
-    auto work = new_matrix(work_, m, n);
-    for (idx_t j = 0; j < n; ++j)
-        for (idx_t i = 0; i < m; ++i)
-            work(i, j) = static_cast<float>(0);
-    // Copy Q to work
-    tlapack::lacpy(tlapack::GENERAL, Q, work);
+        tlapack::geqrt3(Q, Tmatrix);
 
-    tlapack::trmm(tlapack::Side::Right, tlapack::Uplo::Upper,
-                  tlapack::Op::NoTrans, tlapack::Diag::NonUnit,
-                  static_cast<T>(1.0), R, work);
+        // 2) Compute ||Qᴴ Q - I||ꜰ
 
-    for (idx_t j = 0; j < n; ++j)
-        for (idx_t i = 0; i < m; ++i)
-            work(i, j) -= A(i, j);
+        // Copy Upper Triangle of A into R
+        tlapack::lacpy(tlapack::Uplo::Upper, Q, R);
 
-    norm_repres = tlapack::lange(tlapack::FROB_NORM, work) / normA;
-}
+        // Copy the Householder vectors into V
+        tlapack::lacpy(tlapack::GENERAL, Q, V);
 
-CHECK(normA <= tol);
-CHECK(norm_orth <= tol);
+        // Make Q the indentity matrix
+        for (idx_t j = 0; j < n; ++j)
+            for (idx_t i = 0; i < m; ++i)
+                Q(i, j) = static_cast<T>(0.0);
+
+        for (idx_t j = 0; j < std::min(m, n); ++j)
+            Q(j, j) = static_cast<T>(1.0);
+
+        tlapack::larfb(tlapack::Side::Left, tlapack::Op::NoTrans,
+                       tlapack::Direction::Forward, tlapack::StoreV::Columnwise,
+                       V, Tmatrix, Q);
+        // Compute ||Qᴴ Q - I||ꜰ
+        for (idx_t j = 0; j < n; ++j)
+            for (idx_t i = 0; i < n; ++i)
+                work(i, j) = static_cast<float>(0xABADBABE);
+        ;
+
+        // work receives the identity n*n
+        tlapack::laset(tlapack::GENERAL, static_cast<T>(0.0),
+                       static_cast<T>(1.0), work);
+        // work receives Qᴴ Q - I
+        tlapack::gemm(tlapack::Op::ConjTrans, tlapack::Op::NoTrans,
+                      static_cast<T>(1.0), Q, Q, static_cast<T>(-1.0), work);
+
+        norm_orth = tlapack::lange(tlapack::FROB_NORM, work);
+
+        // 3) Compute ||QR - A||ᶠ / ||A||ᶠ
+        for (idx_t j = 0; j < n; ++j)
+            for (idx_t i = 0; i < m; ++i)
+                workQR(i, j) = static_cast<float>(0);
+
+        // Copy Q to work
+        tlapack::lacpy(tlapack::GENERAL, Q, workQR);
+
+        tlapack::trmm(tlapack::Side::Right, tlapack::Uplo::Upper,
+                      tlapack::Op::NoTrans, tlapack::Diag::NonUnit,
+                      static_cast<T>(1.0), R, workQR);
+
+        for (idx_t j = 0; j < n; ++j)
+            for (idx_t i = 0; i < m; ++i)
+                workQR(i, j) -= A(i, j);
+
+        norm_repres = tlapack::lange(tlapack::FROB_NORM, workQR) / normA;
+    }
+    CHECK(norm_repres <= tol);
+    CHECK(norm_orth <= tol);
 }
