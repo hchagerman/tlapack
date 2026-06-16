@@ -20,6 +20,7 @@
 // <T>LAPACK
 #include <tlapack/blas/gemm.hpp>
 #include <tlapack/blas/trmm.hpp>
+#include <tlapack/lapack/gemmtr.hpp>
 #include <tlapack/lapack/geqrt3.hpp>
 #include <tlapack/lapack/lacpy.hpp>
 #include <tlapack/lapack/lange.hpp>
@@ -126,7 +127,7 @@ void run(size_t m, size_t n)
         // Copy the Householder vectors into V
         tlapack::lacpy(tlapack::GENERAL, Q, V);
 
-        //Q becomes the identity matrix
+        // Q becomes the identity matrix
         laset(tlapack::GENERAL, static_cast<T>(0.0), static_cast<T>(1.0), Q);
 
         tlapack::larfb(tlapack::Side::Left, tlapack::Op::NoTrans,
@@ -167,13 +168,17 @@ void run(size_t m, size_t n)
         // Copy Q to work
         tlapack::lacpy(tlapack::GENERAL, Q, work);
 
-        tlapack::trmm(tlapack::Side::Right, tlapack::Uplo::Upper,
-                      tlapack::Op::NoTrans, tlapack::Diag::NonUnit,
-                      static_cast<T>(1.0), R, work);
+        tlapack::gemmtr(tlapack::Side::Right, tlapack::Uplo::Upper,
+                        tlapack::Op::NoTrans, tlapack::Op::NoTrans,
+                        tlapack::Diag::NonUnit, static_cast<T>(1.0),
+                        static_cast<T>(-1.0), R, work, A);
+        // tlapack::trmm(tlapack::Side::Right, tlapack::Uplo::Upper,
+        //               tlapack::Op::NoTrans, tlapack::Diag::NonUnit,
+        //               static_cast<T>(1.0), R, work);
 
-        for (idx_t j = 0; j < n; ++j)
-            for (idx_t i = 0; i < m; ++i)
-                work(i, j) -= A(i, j);
+        // for (idx_t j = 0; j < n; ++j)
+        //     for (idx_t i = 0; i < m; ++i)
+        //         work(i, j) -= A(i, j);
 
         norm_repres = tlapack::lange(tlapack::FROB_NORM, work) / normA;
     }
