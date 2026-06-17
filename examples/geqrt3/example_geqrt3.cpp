@@ -168,10 +168,10 @@ void run(size_t m, size_t n)
         // Copy Q to work
         tlapack::lacpy(tlapack::GENERAL, Q, work);
 
-        tlapack::gemmtr(tlapack::Side::Right, tlapack::Uplo::Upper,
-                        tlapack::Op::NoTrans, tlapack::Op::NoTrans,
-                        tlapack::Diag::NonUnit, static_cast<T>(1.0),
-                        static_cast<T>(-1.0), R, work, A);
+        // tlapack::gemmtr(tlapack::Side::Right, tlapack::Uplo::Upper,
+        //                 tlapack::Op::NoTrans, tlapack::Op::NoTrans,
+        //                 tlapack::Diag::NonUnit, static_cast<T>(1.0),
+        //                 static_cast<T>(-1.0), R, work, A);
         // tlapack::trmm(tlapack::Side::Right, tlapack::Uplo::Upper,
         //               tlapack::Op::NoTrans, tlapack::Diag::NonUnit,
         //               static_cast<T>(1.0), R, work);

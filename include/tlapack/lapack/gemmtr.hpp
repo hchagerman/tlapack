@@ -309,6 +309,12 @@ void gemmtr(Uplo uplo,
     }
 }
 
+template <TLAPACK_MATRIX matrixA_t,
+          TLAPACK_MATRIX matrixB_t,
+          TLAPACK_MATRIX matrixC_t,
+          TLAPACK_SCALAR alpha_t,
+          TLAPACK_SCALAR beta_t,
+          class T = type_t<matrixC_t>>
 void gemmtr(Side side,
             Uplo uplo,
             Op transA,
@@ -327,28 +333,36 @@ void gemmtr(Side side,
 
     // constants
     const idx_t m = nrows(A);
-    const idx_t n = ncols(B);
     const idx_t k = ncols(A);
-
+    const idx_t n = ncols(B);
     if (side == Side::Left) {
         if (uplo == Uplo::Upper) {
             if (transA == Op::NoTrans) {
                 using scalar_t = scalar_type<alpha_t, TB>;
                 if (transB == Op::NoTrans) {
                     if (diag == Diag::NonUnit) {
-                    }
-                    for (idx_t j = 0; j < n; ++j) {
-                        for (idx_t i = 0; i <= j; ++i)
-                            C(i, j) *= beta;
-                        for (idx_t l = 0; l < k; ++l) {
-                            const scalar_t alphaTimesblj = alpha * B(l, j);
-                            for (idx_t i = 0; i < m; ++i)
-                                C(i, j) += A(i, l) * alphaTimesblj;
+                        for (idx_t j = 0; j < n; ++j) {
+                            for (idx_t i = 0; i < m; i++) {
+                                C(i, j) *= beta;
+                                for (idx_t l = i; l < k; l++) {
+                                    const scalar_t alphaTimesblj =
+                                        alpha * B(l, j);
+                                    C(i, j) += A(i, l) * alphaTimesblj;
+                                }
+                            }
                         }
                     }
-
-                    else
-                    {  // diag == Diag::Unit
+                    else {  // diag == Diag::Unit
+                        // for (idx_t j = 0; j < n; ++j) {
+                        //     for (idx_t i = 0; i < m; i++) {
+                        //         C(i, j) *= beta;
+                        //         for (idx_t l = i; l < k; l++) {
+                        //             const scalar_t alphaTimesblj =
+                        //                 alpha * B(l, j);
+                        //             C(i, j) += A(i, l) * alphaTimesblj;
+                        //         }
+                        //     }
+                        // }
                     }
                 }
                 else if (transB == Op::Trans) {

@@ -31,6 +31,15 @@ add_custom_command(
     "${CMAKE_CURRENT_BINARY_DIR}/geqrt3/example_geqrt3${CMAKE_EXECUTABLE_SUFFIX}"
     && echo ""
 )
+# add the example gemmtr
+add_subdirectory( gemmtr )
+add_custom_command(
+  OUTPUT run-all-examples-cmd APPEND
+  COMMAND
+    echo "- example_gemmtr ----------------" &&
+    "${CMAKE_CURRENT_BINARY_DIR}/gemmtr/example_gemmtr${CMAKE_EXECUTABLE_SUFFIX}"
+    && echo ""
+)
 
 # add the example geqrtr
 add_subdirectory( geqrtr )
