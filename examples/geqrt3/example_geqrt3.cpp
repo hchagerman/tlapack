@@ -24,6 +24,7 @@
 #include <tlapack/lapack/lacpy.hpp>
 #include <tlapack/lapack/lange.hpp>
 #include <tlapack/lapack/larfb.hpp>
+#include <tlapack/lapack/larft_recursive.hpp>
 #include <tlapack/lapack/laset.hpp>
 
 // C++ headers

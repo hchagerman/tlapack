@@ -9,13 +9,15 @@
 // <T>LAPACK is free software: you can redistribute it and/or modify it under
 // the terms of the BSD 3-Clause license. See the accompanying LICENSE file.
 
-#ifndef TLAPACK_LARFT_HH
-#define TLAPACK_LARFT_HH
+#ifndef TLAPACK_LARFT_RECURSIVE_HH
+#define TLAPACK_LARFT_RECURSIVE_HH
 
 #include "tlapack/base/utils.hpp"
 #include "tlapack/blas/gemm.hpp"
 #include "tlapack/blas/gemv.hpp"
+#include "tlapack/blas/trmm.hpp"
 #include "tlapack/blas/trmv.hpp"
+#include "tlapack/lapack/lacpy.hpp"
 
 namespace tlapack {
 
@@ -89,17 +91,17 @@ template <TLAPACK_DIRECTION direction_t,
           TLAPACK_SMATRIX matrixV_t,
           TLAPACK_VECTOR vector_t,
           TLAPACK_SMATRIX matrixT_t>
-int larft(direction_t direction,
-          storage_t storeMode,
-          const matrixV_t& V,
-          const vector_t& tau,
-          matrixT_t& T)
+int larft_recursive(direction_t direction,
+                    storage_t storeMode,
+                    const matrixV_t& V,
+                    const vector_t& tau,
+                    matrixT_t& T)
 {
     // data traits
-    using scalar_t = type_t<matrixT_t>;
-    using real_t = real_type<scalar_t>;
-    using tau_t = type_t<vector_t>;
-    using idx_t = size_type<matrixV_t>;
+    using std::size_t;
+    using idx_t = size_type<matrix_a>;
+    using range = pair<idx_t, idx_t>;
+    using T = type_t<matrix_a>;
 
     // using
     using range = pair<idx_t, idx_t>;
@@ -121,12 +123,181 @@ int larft(direction_t direction,
 
     // Quick return
     if (n == 0 || k == 0) {
-        return 0
+        return 0;
         // base case
     }
     else if (n == 1 || k == 1) {
-        t(0, 0) = tau[0];
+        T(0, 0) = tau[0];
         return 0;
+    }
+
+    bool qr =
+        (direction == Direction::Forward && storeMode == StoreV::Columnwise);
+
+    bool lq = (direction == Direction::Forward && storeMode == StoreV::Rowwise);
+
+    bool ql =
+        (direction == Direction::Backward && storeMode == StoreV::Columnwise);
+
+    bool rq =
+        (direction == Direction::Backward && storeMode == StoreV::Rowwise);
+
+    if (qr) {
+        const idx_t l = k / 2;
+
+        auto V0 = slice(V, range(0, n), range(0, l));
+        auto V1 = slice(V, range(l, n), range(l, k));
+
+        auto tau0 = slice(tau, range(0, l));
+        auto tau1 = slice(tau, range(l, k));
+
+        auto T00 = slice(T, range(0, l), range(0, l));
+        auto T01 = slice(T, range(0, l), range(l, k));
+        auto T11 = slice(T, range(l, k), range(l, k));
+
+        larft_recursive(direction, storeMode, V0, tau0, T00);
+        larft_recursive(direction, storeMode, V1, tau1, T11);
+
+        for (idx_t j = 0; j < l; ++j) {
+            for (idx_t i = 0; i < k - l; ++i) {
+                T01(j, i) = conj(V(l + i, j));
+            }
+        }
+
+        auto V11 = slice(V, range(l, k), range(l, k));
+
+        trmm(Side::Right, Uplo::Lower, Op::NoTrans, Diag::Unit, T(1), V11, T01);
+
+        if (n > k) {
+            auto V20 = slice(V, range(k, n), range(0, l));
+            auto V21 = slice(V, range(k, n), range(l, k));
+
+            gemm(Op::ConjTrans, Op::NoTrans, T(1), V20, V21, T(1), T01);
+        }
+        trmm(Side::Left, Uplo::Upper, Op::NoTrans, Diag::NonUnit, T(-1), T00,
+             T01);
+
+        // T01 = T01 * T11
+        trmm(Side::Right, Uplo::Upper, Op::NoTrans, Diag::NonUnit, T(1), T11,
+             T01);
+    }
+    else if (lq) {
+        const idx_t l = k / 2;
+
+        auto v0 = slice(V, range(0, l), range(0, n));
+        auto v1 = slice(V, range(l, k), range(l, n));
+
+        auto T00 = slice(T, range(0, l), range(0, l));
+        auto T01 = slice(T, range(0, l), range(l, k));
+        auto T11 = slice(T, range(l, k), range(l, k));
+
+        // slicing tau
+        auto tau0 = slice(tau, range(0, l));
+        auto tau1 = slice(tau, range(l, k));
+
+        larft_recursive(direction, storeMode, v0, tau0, T00);
+
+        larft_recursive(direction, storeMode, v1, tau1, T11);
+
+        auto V01 = slice(V, range(0, l), range(l, k));
+        lacpy(Uplo::General, V01, T01);
+
+        auto V11 = slice(V, range(l, k), range(l, k));
+        trmm(Side::Right, Uplo::Upper, Op::ConjTrans, Diag::Unit, T(1), V11,
+             T01);
+
+        if (n > k) {
+            auto V02 = slice(V, range(0, l), range(k, n));
+            auto V12 = slice(V, range(l, k), range(k, n));
+
+            gemm(Op::NoTrans, Op::ConjTrans, T(1), V02, V12, T(1), T01);
+        }
+
+        trmm(Side::Left, Uplo::Upper, Op::NoTrans, Diag::NonUnit, T(-1), T00,
+             T01);
+
+        // T01 = T01 * T11
+        trmm(Side::Right, Uplo::Upper, Op::NoTrans, Diag::NonUnit, T(1), T11,
+             T01);
+    }
+    else if (ql) {
+        const idx_t l = k / 2;
+
+        auto v0 = slice(V, range(0, l), range(0, n));
+        auto v1 = slice(V, range(l, k), range(l, n));
+
+        auto T00 = slice(T, range(0, l), range(0, l));
+        auto T01 = slice(T, range(0, l), range(l, k));
+        auto T11 = slice(T, range(l, k), range(l, k));
+
+        // slicing tau
+        auto tau0 = slice(tau, range(0, l));
+        auto tau1 = slice(tau, range(l, k));
+
+        larft_recursive(direction, storeMode, v0, tau0, T00);
+
+        larft_recursive(direction, storeMode, v1, tau1, T11);
+
+        for (idx_t j = 0; j < k - l; ++j) {
+            for (idx_t i = 0; i < l; ++i) {
+                T(k - l + i, j) = V(n - k + j, k - l + i);
+            }
+        }
+        auto V11 = slice(V, range(l, k), range(l, k));
+        trmm(Side::Right, Uplo::Upper, Op::NoTrans, Diag::Unit, T(1), V11, T01);
+
+        if (n > k) {
+            auto V02 = slice(V, range(0, l), range(k, n));
+            auto V12 = slice(V, range(l, k), range(k, n));
+
+            gemm(Op::Trans, Op::NoTrans, T(1), V02, V12, T(1), T01);
+        }
+
+        trmm(Side::Left, Uplo::Lower, Op::NoTrans, Diag::NonUnit, T(-1), T00,
+             T01);
+
+        // T01 = T01 * T11
+        trmm(Side::Right, Uplo::Lower, Op::NoTrans, Diag::NonUnit, T(1), T11,
+             T01);
+        // rq case
+    }
+    else {
+        const idx_t l = k / 2;
+
+        auto v0 = slice(V, range(0, l), range(0, n));
+        auto v1 = slice(V, range(l, k), range(l, n));
+
+        auto T00 = slice(T, range(0, l), range(0, l));
+        auto T01 = slice(T, range(0, l), range(l, k));
+        auto T11 = slice(T, range(l, k), range(l, k));
+
+        // slicing tau
+        auto tau0 = slice(tau, range(0, l));
+        auto tau1 = slice(tau, range(l, k));
+
+        larft_recursive(direction, storeMode, v0, tau0, T00);
+
+        larft_recursive(direction, storeMode, v1, tau1, T11);
+
+        auto V01 = slice(V, range(0, l), range(l, k));
+        lacpy(Uplo::General, V01, T01);
+
+        auto V11 = slice(V, range(l, k), range(l, k));
+        trmm(Side::Right, Uplo::Lower, Op::Trans, Diag::Unit, T(1), V11, T01);
+
+        if (n > k) {
+            auto V02 = slice(V, range(0, l), range(k, n));
+            auto V12 = slice(V, range(l, k), range(k, n));
+
+            gemm(Op::NoTrans, Op::ConjTrans, T(1), V02, V12, T(1), T01);
+        }
+
+        trmm(Side::Left, Uplo::Lower, Op::NoTrans, Diag::NonUnit, T(-1), T00,
+             T01);
+
+        // T01 = T01 * T11
+        trmm(Side::Right, Uplo::Lower, Op::NoTrans, Diag::NonUnit, T(1), T11,
+             T01);
     }
     return 0;
 }
