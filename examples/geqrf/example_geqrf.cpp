@@ -18,6 +18,7 @@
 #include <tlapack/lapack/lacpy.hpp>
 #include <tlapack/lapack/lange.hpp>
 #include <tlapack/lapack/lansy.hpp>
+#include <tlapack/lapack/larft.hpp>
 #include <tlapack/lapack/larft_recursive.hpp>
 #include <tlapack/lapack/laset.hpp>
 #include <tlapack/lapack/ung2r.hpp>
@@ -71,6 +72,18 @@ void run(size_t m, size_t n)
     std::vector<real_t> Tmatrix_;
     auto Tmatrix = new_matrix(Tmatrix_, n, n);
 
+    // Test copies
+    std::vector<real_t> taucopy(n);
+
+    std::vector<real_t> Acopy_;
+    auto Acopy = new_matrix(Acopy_, m, n);
+    std::vector<real_t> Rcopy_;
+    auto Rcopy = new_matrix(Rcopy_, n, n);
+    std::vector<real_t> Qcopy_;
+    auto Qcopy = new_matrix(Qcopy_, m, n);
+    std::vector<real_t> Tmatrixcopy_;
+    auto Tmatrixcopy = new_matrix(Tmatrixcopy_, n, n);
+
     // Initialize arrays with junk
     for (idx_t j = 0; j < n; ++j) {
         for (idx_t i = 0; i < m; ++i) {
@@ -89,6 +102,10 @@ void run(size_t m, size_t n)
         for (idx_t i = 0; i < m; ++i)
             A(i, j) = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
 
+    tlapack::lacpy(tlapack::GENERAL, A, Qcopy);
+    // tlapack::lacpy(tlapack::GENERAL, Q, Qcopy);
+    // tlapack::lacpy(tlapack::GENERAL, tau, taucopy);
+
     // Frobenius norm of A
     auto normA = tlapack::lange(tlapack::FROB_NORM, A);
 
@@ -105,6 +122,19 @@ void run(size_t m, size_t n)
 
     tlapack::larft_recursive(tlapack::Direction::Forward,
                              tlapack::StoreV::Columnwise, Q, tau, Tmatrix);
+
+    tlapack::larft(tlapack::Direction::Forward, tlapack::StoreV::Columnwise, Q,
+                   tau, Tmatrixcopy);
+
+    std::cout << std::endl;
+    std::cout << "larft_recursive Tmatrix = ";
+    printMatrix(Tmatrix);
+    std::cout << std::endl;
+
+    std::cout << std::endl;
+    std::cout << "larft Tmatrix = ";
+    printMatrix(Tmatrixcopy);
+    std::cout << std::endl;
 
     // // 1) Compute A = QR (Stored in the matrix Q)
 
@@ -210,7 +240,7 @@ int main(int argc, char** argv)
     int m, n;
 
     // Default arguments
-    m = (argc < 2) ? 7 : atoi(argv[1]);
+    m = (argc < 2) ? 9 : atoi(argv[1]);
     n = (argc < 3) ? 5 : atoi(argv[2]);
 
     srand(3);  // Init random seed
@@ -222,13 +252,13 @@ int main(int argc, char** argv)
     run<float>(m, n);
     printf("-----------------------\n");
 
-    printf("run< double >( %d, %d )", m, n);
-    run<double>(m, n);
-    printf("-----------------------\n");
+    // printf("run< double >( %d, %d )", m, n);
+    // run<double>(m, n);
+    // printf("-----------------------\n");
 
-    printf("run< long double >( %d, %d )", m, n);
-    run<long double>(m, n);
-    printf("-----------------------\n");
+    // printf("run< long double >( %d, %d )", m, n);
+    // run<long double>(m, n);
+    // printf("-----------------------\n");
 
     return 0;
 }

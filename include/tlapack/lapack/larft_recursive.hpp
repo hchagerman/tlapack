@@ -95,20 +95,18 @@ int larft_recursive(direction_t direction,
                     storage_t storeMode,
                     const matrixV_t& V,
                     const vector_t& tau,
-                    matrixT_t& T)
+                    matrixT_t& Tmatrix)
 {
     // data traits
     using std::size_t;
-    using idx_t = size_type<matrix_a>;
-    using range = pair<idx_t, idx_t>;
-    using T = type_t<matrix_a>;
+    using idx_t = size_type<matrixV_t>;
+
+    using T = type_t<matrixT_t>;
 
     // using
     using range = pair<idx_t, idx_t>;
 
-    // constants
-    const real_t one(1);
-    const real_t zero(0);
+    // constant
     const idx_t n = (storeMode == StoreV::Columnwise) ? nrows(V) : ncols(V);
     const idx_t k = size(tau);
 
@@ -119,7 +117,7 @@ int larft_recursive(direction_t direction,
                         storeMode != StoreV::Rowwise);
     tlapack_check_false(
         k > ((storeMode == StoreV::Columnwise) ? ncols(V) : nrows(V)));
-    tlapack_check_false(nrows(T) < k || ncols(T) < k);
+    tlapack_check_false(nrows(Tmatrix) < k || ncols(Tmatrix) < k);
 
     // Quick return
     if (n == 0 || k == 0) {
@@ -127,7 +125,7 @@ int larft_recursive(direction_t direction,
         // base case
     }
     else if (n == 1 || k == 1) {
-        T(0, 0) = tau[0];
+        Tmatrix(0, 0) = tau[0];
         return 0;
     }
 
@@ -151,9 +149,9 @@ int larft_recursive(direction_t direction,
         auto tau0 = slice(tau, range(0, l));
         auto tau1 = slice(tau, range(l, k));
 
-        auto T00 = slice(T, range(0, l), range(0, l));
-        auto T01 = slice(T, range(0, l), range(l, k));
-        auto T11 = slice(T, range(l, k), range(l, k));
+        auto T00 = slice(Tmatrix, range(0, l), range(0, l));
+        auto T01 = slice(Tmatrix, range(0, l), range(l, k));
+        auto T11 = slice(Tmatrix, range(l, k), range(l, k));
 
         larft_recursive(direction, storeMode, V0, tau0, T00);
         larft_recursive(direction, storeMode, V1, tau1, T11);
@@ -187,9 +185,9 @@ int larft_recursive(direction_t direction,
         auto v0 = slice(V, range(0, l), range(0, n));
         auto v1 = slice(V, range(l, k), range(l, n));
 
-        auto T00 = slice(T, range(0, l), range(0, l));
-        auto T01 = slice(T, range(0, l), range(l, k));
-        auto T11 = slice(T, range(l, k), range(l, k));
+        auto T00 = slice(Tmatrix, range(0, l), range(0, l));
+        auto T01 = slice(Tmatrix, range(0, l), range(l, k));
+        auto T11 = slice(Tmatrix, range(l, k), range(l, k));
 
         // slicing tau
         auto tau0 = slice(tau, range(0, l));
@@ -226,9 +224,9 @@ int larft_recursive(direction_t direction,
         auto v0 = slice(V, range(0, l), range(0, n));
         auto v1 = slice(V, range(l, k), range(l, n));
 
-        auto T00 = slice(T, range(0, l), range(0, l));
-        auto T01 = slice(T, range(0, l), range(l, k));
-        auto T11 = slice(T, range(l, k), range(l, k));
+        auto T00 = slice(Tmatrix, range(0, l), range(0, l));
+        auto T01 = slice(Tmatrix, range(0, l), range(l, k));
+        auto T11 = slice(Tmatrix, range(l, k), range(l, k));
 
         // slicing tau
         auto tau0 = slice(tau, range(0, l));
@@ -240,7 +238,7 @@ int larft_recursive(direction_t direction,
 
         for (idx_t j = 0; j < k - l; ++j) {
             for (idx_t i = 0; i < l; ++i) {
-                T(k - l + i, j) = V(n - k + j, k - l + i);
+                Tmatrix(k - l + i, j) = V(n - k + j, k - l + i);
             }
         }
         auto V11 = slice(V, range(l, k), range(l, k));
@@ -267,9 +265,9 @@ int larft_recursive(direction_t direction,
         auto v0 = slice(V, range(0, l), range(0, n));
         auto v1 = slice(V, range(l, k), range(l, n));
 
-        auto T00 = slice(T, range(0, l), range(0, l));
-        auto T01 = slice(T, range(0, l), range(l, k));
-        auto T11 = slice(T, range(l, k), range(l, k));
+        auto T00 = slice(Tmatrix, range(0, l), range(0, l));
+        auto T01 = slice(Tmatrix, range(0, l), range(l, k));
+        auto T11 = slice(Tmatrix, range(l, k), range(l, k));
 
         // slicing tau
         auto tau0 = slice(tau, range(0, l));
