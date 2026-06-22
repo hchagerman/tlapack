@@ -119,12 +119,13 @@ void run(size_t m, size_t n)
     tlapack::lacpy(tlapack::GENERAL, A, Q);
 
     tlapack::geqrf(Q, tau);
+    tlapack::geqrf(Qcopy, taucopy);
 
     tlapack::larft_recursive(tlapack::Direction::Forward,
                              tlapack::StoreV::Columnwise, Q, tau, Tmatrix);
 
-    tlapack::larft(tlapack::Direction::Forward, tlapack::StoreV::Columnwise, Q,
-                   tau, Tmatrixcopy);
+    tlapack::larft(tlapack::Direction::Forward, tlapack::StoreV::Columnwise,
+                   Qcopy, taucopy, Tmatrixcopy);
 
     std::cout << std::endl;
     std::cout << "larft_recursive Tmatrix = ";
