@@ -47,7 +47,7 @@ void gelqt3(matrix_a& A, matrix_h& Tmatrix)
     const idx_t n = ncols(A);
 
     auto info = 0;
-    if (m < n) {
+    if (m > n) {
         std::cout << "Error: m < n" << std::endl;
         info = -1;
     }
@@ -56,100 +56,115 @@ void gelqt3(matrix_a& A, matrix_h& Tmatrix)
         return;
     }
 
-    if (n == 1) {
-        // Turn the single column into a vector
-        auto a_vector = col(A, 0);
+    if (m == 1) {
+        // Turn the single row into a vector
+        auto a_vector = row(A, 0);
 
         // Populate matrix T with an elementary reflector
-        larfg(Direction::Forward, StoreV::Columnwise, a_vector, Tmatrix(0, 0));
+        larfg(Direction::Forward, StoreV::Rowwise, a_vector, Tmatrix(0, 0));
     }
     else {
-        // Define slice sizes
-        idx_t n1 = n / 2;
-        idx_t n2 = n - n1;
-        idx_t m1 = n1;
-        idx_t m2 = n2 + n1;
-        idx_t m3 = m;
+        // // Define slice sizes
+        // idx_t m1 = m / 2;
+        // idx_t m2 = m - n1;
+        // // idx_t m1 = n1;
+        // // idx_t m2 = n2 + n1;
+        // // idx_t m3 = n;
 
-        // slices
-        auto A1 = slice(A, range(0, m), range(0, n1));
-        auto A11 = slice(A, range(0, m1), range(0, n1));
-        auto A12 = slice(A, range(0, m1), range(n1, n));
-        auto A21 = slice(A, range(m1, m2), range(0, n1));
-        auto A22 = slice(A, range(m1, m2), range(n1, n));
-        auto A22_32 = slice(A, range(m1, m3), range(n1, n));
-        auto A31 = slice(A, range(m2, m3), range(0, n1));
-        auto A32 = slice(A, range(m2, m3), range(n1, n));
-        auto T11 = slice(Tmatrix, range(0, n1), range(0, n1));
-        auto T12 = slice(Tmatrix, range(0, n1), range(n1, n));
-        auto T22 = slice(Tmatrix, range(n1, n), range(n1, n));
+        // // slices
+        // auto A1 = slice(A, range(0, m1), range(0, n1));
+        // auto A11 = slice(A, range(0, m1), range(0, n1));
+        // auto A12 = slice(A, range(0, m1), range(n1, n));
+        // auto A21 = slice(A, range(m1, m2), range(0, n1));
+        // auto A22 = slice(A, range(m1, m2), range(n1, n));
+        // auto A22_32 = slice(A, range(m1, m3), range(n1, n));
+        // auto A31 = slice(A, range(m2, m3), range(0, n1));
+        // auto A32 = slice(A, range(m2, m3), range(n1, n));
+        // auto T11 = slice(Tmatrix, range(0, n1), range(0, n1));
+        // auto T12 = slice(Tmatrix, range(0, n1), range(n1, n));
+        // auto T22 = slice(Tmatrix, range(n1, n), range(n1, n));
+
+        idx_t m1 = m / 2;
+        idx_t m2 = m - m1;
+
+        auto A1 = slice(A, range(0, m1), range(0, n));
+        auto A2 = slice(A, range(m1, m), range(0, n));
+
+        auto A11 = slice(A, range(0, m1), range(0, m1));
+        auto A12 = slice(A, range(0, m1), range(m1, n));
+        auto A21 = slice(A, range(m1, m), range(0, m1));
+        auto A22 = slice(A, range(m1, m), range(m1, n));
+
+        auto T11 = slice(Tmatrix, range(0, m1), range(0, m1));
+        auto T22 = slice(Tmatrix, range(m1, m), range(m1, m));
+        auto T21 = slice(Tmatrix, range(m1, m), range(0, m1));
 
         // step 1: Compute the QR factorization of A1
         gelqt3(A1, T11);
 
-        // step 2: Copy A12 into T12
+        // step 2: Copy A21 into T21
         // no additional flops, just copy
-        lacpy(Uplo::General, A12, T12);
+        lacpy(Uplo::General, A21, T21);
 
-        // step 3: T12 = A11ᴴ * T12
+        // step 3: T21 = A11ᴴ * T21
 
         trmm(Side::Right, Uplo::Upper, Op::ConjTrans, Diag::Unit, T(1.0), A11,
-             T12);
+             T21);
 
-        // step 4: T12 = T12 + (A21ᴴ * A22)
+        // step 4: T21 = T21 + (A12ᴴ * A22)
 
-        gemm(Op::NoTrans, Op::ConjTrans, T(1.0), A21, A22, T(1.0), T12);
+        gemm(Op::NoTrans, Op::ConjTrans, T(1.0), A22, A12, T(1.0), T21);
 
-        // T12 = T12 + (A31ᴴ * A32)
-        gemm(Op::NoTrans, Op::ConjTrans, T(1.0), A31, A32, T(1.0), T12);
+        // T21 = T21 + (A31ᴴ * A32)
+        // gemm(Op::NoTrans, Op::ConjTrans, T(1.0), A21, A22, T(1.0), T21);
 
-        // step 5: T12 = T11ᴴ * T12
+        // step 5: T21 = T11ᴴ * T21
         trmm(Side::Right, Uplo::Upper, Op::NoTrans, Diag::NonUnit, T(1.0), T11,
-             T12);
+             T21);
 
-        // step 6:  A22 = A22 - (A21 * T12)
-        gemm(Op::NoTrans, Op::NoTrans, T(-1.0), A21, T12, T(1.0), A22);
+        // step 6:  A22 = A22 - (A12 * T21)
+        gemm(Op::NoTrans, Op::NoTrans, T(-1.0), A12, T21, T(1.0), A22);
 
-        // A32 = A32 - (A31 * T12)
-        gemm(Op::NoTrans, Op::NoTrans, T(-1.0), A31, T12, T(1.0), A32);
+        // A32 = A32 - (A31 * T21)
+        gemm(Op::NoTrans, Op::NoTrans, T(-1.0), A21, T21, T(1.0), A22);
 
-        // step 7:T12 = A11 * T12
+        // step 7:T21 = A11 * T21
         trmm(Side::Right, Uplo::Upper, Op::NoTrans, Diag::Unit, T(1.0), A11,
-             T12);
+             T21);
 
-        // step 8: A12 = A12 - T12
-        for (idx_t j = 0; j < n2; ++j) {
-            for (idx_t i = 0; i < m1; ++i) {
-                A12(i, j) -= T12(i, j);
+        // step 8: A21 = A21 - T21
+        for (idx_t j = 0; j < m1; ++j) {
+            for (idx_t i = 0; i < m2; ++i) {
+                A21(i, j) -= T21(i, j);
             }
         }
-        // step 9: Compute the QR factorization of A22_32
-        gelqt3(A22_32, T22);
+        // step 9: Compute the QR factorization of A22
+        gelqt3(A22, T22);
 
-        // step 10: manually compute T12 = A21ᴴ
-        for (idx_t j = 0; j < n2; ++j) {
+        // step 10: manually compute T21 = A12ᴴ
+        for (idx_t j = 0; j < m2; ++j) {
             for (idx_t i = 0; i < m1; ++i) {
                 if constexpr (is_complex<T>)
-                    T12(i, j) = std::conj(A21(j, i));
+                    T21(i, j) = std::conj(A12(j, i));
                 else
-                    T12(i, j) = A21(j, i);
+                    T21(i, j) = A12(j, i);
             }
         }
 
-        // step 11: T12 = T12 * T22ᴴ
+        // step 11: T21 = T21 * T22ᴴ
         trmm(Side::Right, Uplo::Upper, Op::ConjTrans, Diag::Unit, T(1.0), A22,
-             T12);
+             T21);
 
-        // step 12: T12 = T12 + A31ᴴ * A32
-        gemm(Op::NoTrans, Op::ConjTrans, T(1.0), A31, A32, T(1.0), T12);
+        // step 12: T21 = T21 + A31ᴴ * A32
+        gemm(Op::NoTrans, Op::ConjTrans, T(1.0), A21, A22, T(1.0), T21);
 
-        // step 13: T12 = T12 * T11
+        // step 13: T21 = T21 * T11
         trmm(Side::Left, Uplo::Upper, Op::NoTrans, Diag::NonUnit, T(-1.0), T11,
-             T12);
+             T21);
 
-        // step 14: T12 = T12 * T22
+        // step 14: T21 = T21 * T22
         trmm(Side::Right, Uplo::Upper, Op::NoTrans, Diag::NonUnit, T(1.0), T22,
-             T12);
+             T21);
     }
 }
 }  // namespace tlapack

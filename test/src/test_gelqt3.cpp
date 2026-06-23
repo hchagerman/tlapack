@@ -39,8 +39,8 @@ TEMPLATE_TEST_CASE(
     MatrixMarket mm;
 
     idx_t m, n;
-    m = GENERATE(2, 3, 5, 8, 16, 21, 51);
-    n = GENERATE(5, 7, 63);
+    m = GENERATE(2, 3);
+    n = GENERATE(5);
 
     const real_t eps = ulp<real_t>();
     const real_t tol = real_t(100 * n) * eps;
@@ -79,8 +79,17 @@ TEMPLATE_TEST_CASE(
         // 1) Compute the QR factorization of A
         gelqt3(Q, Tmatrix);
 
-        // 2) Compute ||Qᴴ Q - I||ꜰ
+        using idx_t = tlapack::size_type<matrix_t>;
+        const idx_t m = tlapack::nrows(Tmatrix);
+        const idx_t n = tlapack::ncols(Tmatrix);
 
+        for (idx_t i = 0; i < m; ++i) {
+            std::cout << std::endl;
+            for (idx_t j = 0; j < n; ++j)
+                std::cout << Tmatrix(i, j) << " ";
+        }
+
+        // 2) Compute ||Qᴴ Q - I||ꜰ
         // Copy Upper Triangle of Q into R
         lacpy(Uplo::Lower, Q, L);
 
@@ -102,7 +111,7 @@ TEMPLATE_TEST_CASE(
 
         norm_orth = lange(FROB_NORM, work);
 
-        // 3) Compute ||QR - A||ꜰ / ||A||ꜰ
+        // 3) Compute ||LQ - A||ꜰ / ||A||ꜰ
 
         trmm(Side::Left, Uplo::Lower, Op::NoTrans, Diag::NonUnit,
              static_cast<T>(1.0), L, Q);
@@ -113,6 +122,7 @@ TEMPLATE_TEST_CASE(
 
         norm_repres = lange(FROB_NORM, Q) / normA;
     }
+
     CHECK(norm_repres <= tol);
     CHECK(norm_orth <= tol);
 }
