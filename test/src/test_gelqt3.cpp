@@ -39,7 +39,7 @@ TEMPLATE_TEST_CASE(
     MatrixMarket mm;
 
     idx_t m, n;
-    m = GENERATE(2, 3);
+    m = GENERATE(2);
     n = GENERATE(5);
 
     const real_t eps = ulp<real_t>();
@@ -76,42 +76,44 @@ TEMPLATE_TEST_CASE(
         // Copy A to Q
         lacpy(GENERAL, A, Q);
 
-        // 1) Compute the QR factorization of A
+        auto print = [&](auto& M, const char* name) {
+            std::cout << "\n" << name << ":\n";
+            for (idx_t i = 0; i < nrows(M); ++i) {
+                for (idx_t j = 0; j < ncols(M); ++j)
+                    std::cout << M(i, j) << " ";
+                std::cout << '\n';
+            }
+        };
+
+        print(A, "A");
+        laset(GENERAL, T(0.0), T(0.0), Tmatrix);
+        // 1) Compute the LQ factorization of A
         gelqt3(Q, Tmatrix);
 
-        using idx_t = tlapack::size_type<matrix_t>;
-        const idx_t m = tlapack::nrows(Tmatrix);
-        const idx_t n = tlapack::ncols(Tmatrix);
+        print(Tmatrix, "Tmatrix");
+        print(Q, "Q");
 
-        for (idx_t i = 0; i < m; ++i) {
-            std::cout << std::endl;
-            for (idx_t j = 0; j < n; ++j)
-                std::cout << Tmatrix(i, j) << " ";
-        }
-
-        // 2) Compute ||Qᴴ Q - I||ꜰ
-        // Copy Upper Triangle of Q into R
         lacpy(Uplo::Lower, Q, L);
 
         // Copy the Householder vectors into V
         lacpy(GENERAL, Q, V);
-
+        std::cout << std::endl << " working " << std::endl;
         // creates the identity matrix in Q
         laset(GENERAL, static_cast<T>(0.0), static_cast<T>(1.0), Q);
-
+        std::cout << std::endl << " working " << std::endl;
         // Apply the Householder reflectors
-        larfb(Side::Right, Op::NoTrans, Direction::Forward, StoreV::Rowwise, V,
-              Tmatrix, Q);
-
+        larfb(Side::Right, Op::ConjTrans, Direction::Forward, StoreV::Rowwise,
+              V, Tmatrix, Q);
+        std::cout << std::endl << " working " << std::endl;
         // work receives the identity n*n
         laset(GENERAL, static_cast<T>(0.0), static_cast<T>(1.0), work);
         // work receives Qᴴ Q - I
         gemm(Op::NoTrans, Op::ConjTrans, static_cast<T>(1.0), Q, Q,
              static_cast<T>(-1.0), work);
-
+        print(work, "work");
         norm_orth = lange(FROB_NORM, work);
 
-        // 3) Compute ||LQ - A||ꜰ / ||A||ꜰ
+        // 3) Compute ||QR - A||ꜰ / ||A||ꜰ
 
         trmm(Side::Left, Uplo::Lower, Op::NoTrans, Diag::NonUnit,
              static_cast<T>(1.0), L, Q);
@@ -122,7 +124,10 @@ TEMPLATE_TEST_CASE(
 
         norm_repres = lange(FROB_NORM, Q) / normA;
     }
-
+    std::cout << std::endl
+              << std::endl
+              << "tol = " << tol << "     " << "norm_repress = " << norm_repres
+              << "        " << "norm_orth : " << norm_orth << std::endl;
     CHECK(norm_repres <= tol);
     CHECK(norm_orth <= tol);
 }

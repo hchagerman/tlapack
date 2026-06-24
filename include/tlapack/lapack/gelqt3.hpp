@@ -10,8 +10,8 @@
 // <T>LAPACK is free software: you can redistribute it and/or modify it under
 // the terms of the BSD 3-Clause license. See the accompanying LICENSE file.
 
-#ifndef TLAPACK_GEQRT3_HH
-#define TLAPACK_GEQRT3_HH
+#ifndef TLAPACK_GELQT3_HH
+#define TLAPACK_GELQT3_HH
 
 #include "tlapack/blas/gemm.hpp"
 #include "tlapack/blas/trmm.hpp"
@@ -66,23 +66,6 @@ void gelqt3(matrix_a& A, matrix_h& Tmatrix)
     else {
         // // Define slice sizes
         // idx_t m1 = m / 2;
-        // idx_t m2 = m - n1;
-        // // idx_t m1 = n1;
-        // // idx_t m2 = n2 + n1;
-        // // idx_t m3 = n;
-
-        // // slices
-        // auto A1 = slice(A, range(0, m1), range(0, n1));
-        // auto A11 = slice(A, range(0, m1), range(0, n1));
-        // auto A12 = slice(A, range(0, m1), range(n1, n));
-        // auto A21 = slice(A, range(m1, m2), range(0, n1));
-        // auto A22 = slice(A, range(m1, m2), range(n1, n));
-        // auto A22_32 = slice(A, range(m1, m3), range(n1, n));
-        // auto A31 = slice(A, range(m2, m3), range(0, n1));
-        // auto A32 = slice(A, range(m2, m3), range(n1, n));
-        // auto T11 = slice(Tmatrix, range(0, n1), range(0, n1));
-        // auto T12 = slice(Tmatrix, range(0, n1), range(n1, n));
-        // auto T22 = slice(Tmatrix, range(n1, n), range(n1, n));
 
         idx_t m1 = m / 2;
         idx_t m2 = m - m1;
@@ -99,38 +82,40 @@ void gelqt3(matrix_a& A, matrix_h& Tmatrix)
         auto T22 = slice(Tmatrix, range(m1, m), range(m1, m));
         auto T21 = slice(Tmatrix, range(m1, m), range(0, m1));
 
-        // step 1: Compute the QR factorization of A1
+        // step 1: Compute the LQ factorization of A1
         gelqt3(A1, T11);
 
         // step 2: Copy A21 into T21
-        // no additional flops, just copy
+
         lacpy(Uplo::General, A21, T21);
 
         // step 3: T21 = A11ᴴ * T21
 
-        trmm(Side::Right, Uplo::Upper, Op::ConjTrans, Diag::Unit, T(1.0), A11,
-             T21);
+        trmm(Side::Right, Uplo::Lower, Op::ConjTrans, Diag::Unit,
+             static_cast<T>(1.0), A11, T21);
 
         // step 4: T21 = T21 + (A12ᴴ * A22)
 
-        gemm(Op::NoTrans, Op::ConjTrans, T(1.0), A22, A12, T(1.0), T21);
+        // gemm(Op::NoTrans, Op::ConjTrans, T(1.0), A22, A12, T(1.0), T21);
 
-        // T21 = T21 + (A31ᴴ * A32)
-        // gemm(Op::NoTrans, Op::ConjTrans, T(1.0), A21, A22, T(1.0), T21);
+        // T21 = T21 + A22 * A12^H
+        gemm(Op::NoTrans, Op::ConjTrans, static_cast<T>(1.0), A22, A12,
+             static_cast<T>(1.0), T21);
 
-        // step 5: T21 = T11ᴴ * T21
-        trmm(Side::Right, Uplo::Upper, Op::NoTrans, Diag::NonUnit, T(1.0), T11,
-             T21);
+        // T21 = T21 * T11^H
+        trmm(Side::Right, Uplo::Lower, Op::ConjTrans, Diag::NonUnit,
+             static_cast<T>(1.0), T11, T21);
 
         // step 6:  A22 = A22 - (A12 * T21)
-        gemm(Op::NoTrans, Op::NoTrans, T(-1.0), A12, T21, T(1.0), A22);
+        // gemm(Op::NoTrans, Op::NoTrans, T(-1.0), A12, T21, T(1.0), A22);
 
-        // A32 = A32 - (A31 * T21)
-        gemm(Op::NoTrans, Op::NoTrans, T(-1.0), A21, T21, T(1.0), A22);
+        // A22 = A22 - T21 * A12
+        gemm(Op::NoTrans, Op::NoTrans, static_cast<T>(-1.0), T21, A12,
+             static_cast<T>(1.0), A22);
 
         // step 7:T21 = A11 * T21
-        trmm(Side::Right, Uplo::Upper, Op::NoTrans, Diag::Unit, T(1.0), A11,
-             T21);
+        trmm(Side::Right, Uplo::Lower, Op::NoTrans, Diag::Unit,
+             static_cast<T>(1.0), A11, T21);
 
         // step 8: A21 = A21 - T21
         for (idx_t j = 0; j < m1; ++j) {
@@ -138,34 +123,36 @@ void gelqt3(matrix_a& A, matrix_h& Tmatrix)
                 A21(i, j) -= T21(i, j);
             }
         }
-        // step 9: Compute the QR factorization of A22
+        // step 9: Compute the LQ factorization of A22
         gelqt3(A22, T22);
 
-        // step 10: manually compute T21 = A12ᴴ
-        for (idx_t j = 0; j < m2; ++j) {
-            for (idx_t i = 0; i < m1; ++i) {
-                if constexpr (is_complex<T>)
-                    T21(i, j) = std::conj(A12(j, i));
-                else
-                    T21(i, j) = A12(j, i);
-            }
-        }
+        // // step 10: manually compute T21 = A12ᴴ
+        // for (idx_t j = 0; j < m2; ++j) {
+        //     for (idx_t i = 0; i < m1; ++i) {
+        //         if constexpr (is_complex<T>)
+        //             T21(i, j) = std::conj(A12(j, i));
+        //         else
+        //             T21(i, j) = A12(j, i);
+        //     }
+        // }
+        lacpy(Uplo::General, A21, T21);
 
         // step 11: T21 = T21 * T22ᴴ
-        trmm(Side::Right, Uplo::Upper, Op::ConjTrans, Diag::Unit, T(1.0), A22,
-             T21);
+        trmm(Side::Right, Uplo::Lower, Op::ConjTrans, Diag::Unit,
+             static_cast<T>(1.0), A11, T21);
 
         // step 12: T21 = T21 + A31ᴴ * A32
-        gemm(Op::NoTrans, Op::ConjTrans, T(1.0), A21, A22, T(1.0), T21);
+        gemm(Op::NoTrans, Op::ConjTrans, static_cast<T>(1.0), A22, A12,
+             static_cast<T>(1.0), T21);
 
         // step 13: T21 = T21 * T11
-        trmm(Side::Left, Uplo::Upper, Op::NoTrans, Diag::NonUnit, T(-1.0), T11,
-             T21);
+        trmm(Side::Left, Uplo::Lower, Op::NoTrans, Diag::NonUnit,
+             static_cast<T>(-1.0), T22, T21);
 
         // step 14: T21 = T21 * T22
-        trmm(Side::Right, Uplo::Upper, Op::NoTrans, Diag::NonUnit, T(1.0), T22,
-             T21);
+        trmm(Side::Right, Uplo::Lower, Op::NoTrans, Diag::NonUnit,
+             static_cast<T>(1.0), T11, T21);
     }
 }
 }  // namespace tlapack
-#endif  // TLAPACK_GEQRT3_HH
+#endif  // TLAPACK_GELQT3_HH
