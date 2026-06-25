@@ -185,32 +185,6 @@ void run(size_t m, size_t n)
     std::cout << std::endl;
     double seconds = elapsedLQ.count() * 1.0e-9;
 
-    // //(3*m*n² - 5/6*n³)
-    // double geqrt3_flops =
-    //     (3.0 * ((double)m) * ((double)n) * ((double)n)) -
-    //     ((5.0 / 6.0) * ((double)n) * ((double)n) * ((double)n));
-
-    // std::cout << "time = " << elapsedQR.count() * 1.0e-6 << " ms" <<
-    // std::endl
-    //           << "geqrt3 Flop/sec = " << (geqrt3_flops / seconds) * 1.0e-9
-    //           << std::endl;
-
-    // //( 2 * m * n² - 2 / 3 * n³ ))
-    // auto geqr2_flops = ((2.0 * ((double)m) * ((double)n) * ((double)n)) -
-    //                     (2.0 / 3.0 * ((double)n) * ((double)n) *
-    //                     ((double)n)));
-    // std::cout << "GEQR2 flops/sec = " << (geqr2_flops / seconds) * 1.0e-9
-    //           << std::endl;
-
-    // // ( 3 * m * n² - 5 / 6 * n³ ) / ( 2 * m * n² - 2 / 3 * n³ ))
-    // auto geqr_ratio = ((3.0 * ((double)m) * ((double)n) * ((double)n)) -
-    //                    (5.0 / 6.0 * ((double)n) * ((double)n) * ((double)n)))
-    //                    /
-    //                   ((2.0 * ((double)m) * ((double)n) * ((double)n)) -
-    //                    (2.0 / 3.0 * ((double)n) * ((double)n) *
-    //                    ((double)n)));
-
-    //  std::cout << "GEQRT3/GEQR2 flop ratio = " << (geqr_ratio) << std::endl;
     std::cout << "||LQ - A||ꜰ/||A||ꜰ  = " << std::real(norm_repres)
               << ",        ||QᴴQ - I||ꜰ  = " << std::real(norm_orth);
     std::cout << std::endl;
