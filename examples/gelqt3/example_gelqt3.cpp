@@ -11,7 +11,7 @@
 // <T>LAPACK is free software: you can redistribute it and/or modify it under
 // the terms of the BSD 3-Clause license. See the accompanying LICENSE file.
 //
-// DGEQRT3 recursively computes a QR factorization of a real M-by-N
+// DGELQT3 recursively computes a LQ factorization of a real M-by-N
 // matrix A, using the compact WY representation of Q.
 
 // Plugins for <T>LAPACK (must come before <T>LAPACK headers)
@@ -104,16 +104,16 @@ void run(size_t m, size_t n)
     tlapack::lacpy(tlapack::GENERAL, A, Q);
 
     // Record start time
-    auto startQR = std::chrono::high_resolution_clock::now();
+    auto startLQ = std::chrono::high_resolution_clock::now();
     {
         tlapack::gelqt3(Q, Tmatrix);
     }
     // Record end time
-    auto endQR = std::chrono::high_resolution_clock::now();
+    auto endLQ = std::chrono::high_resolution_clock::now();
 
     // Compute elapsed time in nanoseconds
-    auto elapsedQR =
-        std::chrono::duration_cast<std::chrono::nanoseconds>(endQR - startQR);
+    auto elapsedLQ =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(endLQ - startLQ);
 
     // Compute the Frobenius norm of A
     auto normA = tlapack::lange(tlapack::FROB_NORM, A);
@@ -158,7 +158,7 @@ void run(size_t m, size_t n)
         }
     }
 
-    // 3) Compute ||QR - A||ꜰ / ||A||ꜰ
+    // 3) Compute ||LQ - A||ꜰ / ||A||ꜰ
     {
         std::vector<T> work_;
 
@@ -182,8 +182,8 @@ void run(size_t m, size_t n)
 
     // *) Output
 
-    //  std::cout << std::endl;
-    // double seconds = elapsedQR.count() * 1.0e-9;
+    std::cout << std::endl;
+    double seconds = elapsedLQ.count() * 1.0e-9;
 
     // //(3*m*n² - 5/6*n³)
     // double geqrt3_flops =
@@ -227,8 +227,8 @@ int main(int argc, char** argv)
 
     srand(3);  // Init random seed
 
-    m = 90;
-    n = 100;
+    m = 199;
+    n = 257;
 
     std::cout.precision(5);
     std::cout << std::scientific << std::showpos;

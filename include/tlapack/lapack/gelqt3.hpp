@@ -19,7 +19,7 @@
 #include "tlapack/lapack/larfg.hpp"
 
 /**
- * Recursive QR factorization using compact WY Householder representation.
+ * Recursive LQ factorization using compact WY Householder representation.
  *
  * @param[in,out] A
  *     On entry, the m-by-n matrix to be factorized, where m >= n.

@@ -24,7 +24,7 @@
 using namespace tlapack;
 
 TEMPLATE_TEST_CASE(
-    "gelqt3 recursively computes the QR factorization of a matrix",
+    "gelqt3 recursively computes the LQ factorization of a matrix",
     "[gelqt3]",
     TLAPACK_TYPES_TO_TEST)
 {
@@ -40,9 +40,7 @@ TEMPLATE_TEST_CASE(
 
     idx_t m, n;
     m = GENERATE(1, 2, 3, 5, 8, 15, 16, 17, 31, 32, 63, 64);
-    n = GENERATE(90);
-    // add N values
-    //  add if less then 0 = tol
+    n = GENERATE(1, 2, 4, 8, 16, 33, 64, 65, 128);
 
     const real_t eps = ulp<real_t>();
     const real_t tol = real_t(100 * n) * eps;
@@ -99,7 +97,7 @@ TEMPLATE_TEST_CASE(
 
         norm_orth = lange(FROB_NORM, work);
 
-        // 3) Compute ||QR - A||ꜰ / ||A||ꜰ
+        // 3) Compute ||LQ - A||ꜰ / ||A||ꜰ
 
         trmm(Side::Left, Uplo::Lower, Op::NoTrans, Diag::NonUnit,
              static_cast<T>(1.0), L, Q);
