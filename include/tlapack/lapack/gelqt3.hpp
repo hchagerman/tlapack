@@ -87,46 +87,43 @@ void gelqt3(matrix_a& A, matrix_h& Tmatrix)
         auto T11 = slice(Tmatrix, range(0, m1), range(0, m1));
         auto T22 = slice(Tmatrix, range(m1, m), range(m1, m));
         auto T12 = slice(Tmatrix, range(0, m1), range(m1, m));
-        auto W = slice(Tmatrix, range(m1, m), range(0, m1));
-
+        auto T12H = transpose_view(T12);
         // step 1: Compute the LQ factorization of A1
         gelqt3(A1, T11);
 
         // step 2: Copy A12 into T21
-        lacpy(Uplo::General, A21, W);
-
+        lacpy(Uplo::General, A21, T12H);
         // step 3: T21 = A11ᴴ * T21
         trmm(Side::Right, Uplo::Upper, Op::ConjTrans, Diag::Unit,
-             static_cast<T>(1.0), A11, W);
+             static_cast<T>(1.0), A11, T12H);
 
         // step 4: T21 = T21 + (A12ᴴ * A22)
-        gemm(Op::NoTrans, Op::ConjTrans, T(1.0), A22, A12, T(1.0), W);
+        gemm(Op::NoTrans, Op::ConjTrans, T(1.0), A22, A12, T(1.0), T12H);
 
         // T21 = T21 + A22 * A12^H
         gemm(Op::NoTrans, Op::ConjTrans, static_cast<T>(1.0), A23, A13,
-             static_cast<T>(1.0), W);
+             static_cast<T>(1.0), T12H);
 
         // T21 = T21 * T11^H
         trmm(Side::Right, Uplo::Upper, Op::NoTrans, Diag::NonUnit,
-             static_cast<T>(1.0), T11, W);
+             static_cast<T>(1.0), T11, T12H);
 
         // step 6:  A22 = A22 - (A12 * T21)
-        gemm(Op::NoTrans, Op::NoTrans, static_cast<T>(-1.0), W, A12,
+        gemm(Op::NoTrans, Op::NoTrans, static_cast<T>(-1.0), T12H, A12,
              static_cast<T>(1.0), A22);
 
         // A22 = A22 - T21 * A12
-        gemm(Op::NoTrans, Op::NoTrans, static_cast<T>(-1.0), W, A13,
+        gemm(Op::NoTrans, Op::NoTrans, static_cast<T>(-1.0), T12H, A13,
              static_cast<T>(1.0), A23);
 
         // step 7:T21 = A11 * T21
         trmm(Side::Right, Uplo::Upper, Op::NoTrans, Diag::Unit,
-             static_cast<T>(1.0), A11, W);
+             static_cast<T>(1.0), A11, T12H);
 
         // step 8: A21 = A21 - T21
         for (idx_t j = 0; j < m1; ++j) {
             for (idx_t i = 0; i < m2; ++i) {
-                A21(i, j) -= W(i, j);
-                W(i, j) = T(0.0);
+                A21(i, j) -= T12H(i, j);
             }
         }
         // step 9: Compute the LQ factorization of A22
