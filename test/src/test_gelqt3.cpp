@@ -39,8 +39,8 @@ TEMPLATE_TEST_CASE(
     MatrixMarket mm;
 
     idx_t m, n;
-    m = GENERATE(2);
-    n = GENERATE(5);
+    m = GENERATE(5);
+    n = GENERATE(7);
 
     const real_t eps = ulp<real_t>();
     const real_t tol = real_t(100 * n) * eps;
@@ -97,14 +97,11 @@ TEMPLATE_TEST_CASE(
 
         // Copy the Householder vectors into V
         lacpy(GENERAL, Q, V);
-        std::cout << std::endl << " working " << std::endl;
         // creates the identity matrix in Q
         laset(GENERAL, static_cast<T>(0.0), static_cast<T>(1.0), Q);
-        std::cout << std::endl << " working " << std::endl;
         // Apply the Householder reflectors
         larfb(Side::Right, Op::ConjTrans, Direction::Forward, StoreV::Rowwise,
               V, Tmatrix, Q);
-        std::cout << std::endl << " working " << std::endl;
         // work receives the identity n*n
         laset(GENERAL, static_cast<T>(0.0), static_cast<T>(1.0), work);
         // work receives Qᴴ Q - I
