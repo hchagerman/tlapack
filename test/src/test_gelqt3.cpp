@@ -39,8 +39,10 @@ TEMPLATE_TEST_CASE(
     MatrixMarket mm;
 
     idx_t m, n;
-    m = GENERATE(5);
-    n = GENERATE(7);
+    m = GENERATE(1, 2, 3, 5, 8, 15, 16, 17, 31, 32, 63, 64);
+    n = GENERATE(90);
+    // add N values
+    //  add if less then 0 = tol
 
     const real_t eps = ulp<real_t>();
     const real_t tol = real_t(100 * n) * eps;
@@ -76,22 +78,9 @@ TEMPLATE_TEST_CASE(
         // Copy A to Q
         lacpy(GENERAL, A, Q);
 
-        auto print = [&](auto& M, const char* name) {
-            std::cout << "\n" << name << ":\n";
-            for (idx_t i = 0; i < nrows(M); ++i) {
-                for (idx_t j = 0; j < ncols(M); ++j)
-                    std::cout << M(i, j) << " ";
-                std::cout << '\n';
-            }
-        };
-
-        print(A, "A");
         laset(GENERAL, T(0.0), T(0.0), Tmatrix);
         // 1) Compute the LQ factorization of A
         gelqt3(Q, Tmatrix);
-
-        print(Tmatrix, "Tmatrix");
-        print(Q, "Q");
 
         lacpy(Uplo::Lower, Q, L);
 
@@ -107,7 +96,7 @@ TEMPLATE_TEST_CASE(
         // work receives Qᴴ Q - I
         gemm(Op::NoTrans, Op::ConjTrans, static_cast<T>(1.0), Q, Q,
              static_cast<T>(-1.0), work);
-        print(work, "work");
+
         norm_orth = lange(FROB_NORM, work);
 
         // 3) Compute ||QR - A||ꜰ / ||A||ꜰ
@@ -121,10 +110,6 @@ TEMPLATE_TEST_CASE(
 
         norm_repres = lange(FROB_NORM, Q) / normA;
     }
-    std::cout << std::endl
-              << std::endl
-              << "tol = " << tol << "     " << "norm_repress = " << norm_repres
-              << "        " << "norm_orth : " << norm_orth << std::endl;
     CHECK(norm_repres <= tol);
     CHECK(norm_orth <= tol);
 }
