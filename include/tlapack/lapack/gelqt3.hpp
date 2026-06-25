@@ -82,12 +82,11 @@ void gelqt3(matrix_a& A, matrix_h& Tmatrix)
         auto A21 = slice(A, range(m1, m), range(0, n1));
         auto A22 = slice(A, range(m1, m), range(n1, n2));
         auto A23 = slice(A, range(m1, m), range(n2, n));
+        auto A12_13 = slice(A, range(m1, m), range(m1, n));
 
         auto T11 = slice(Tmatrix, range(0, m1), range(0, m1));
         auto T22 = slice(Tmatrix, range(m1, m), range(m1, m));
         auto T12 = slice(Tmatrix, range(0, m1), range(m1, m));
-        // check if real slice
-        auto A22_32 = slice(A, range(m1, m), range(m1, n));
         auto W = slice(Tmatrix, range(m1, m), range(0, m1));
 
         // step 1: Compute the LQ factorization of A1
@@ -95,8 +94,8 @@ void gelqt3(matrix_a& A, matrix_h& Tmatrix)
 
         // step 2: Copy A12 into T21
         lacpy(Uplo::General, A21, W);
-        // step 3: T21 = A11ᴴ * T21
 
+        // step 3: T21 = A11ᴴ * T21
         trmm(Side::Right, Uplo::Upper, Op::ConjTrans, Diag::Unit,
              static_cast<T>(1.0), A11, W);
 
@@ -131,17 +130,9 @@ void gelqt3(matrix_a& A, matrix_h& Tmatrix)
             }
         }
         // step 9: Compute the LQ factorization of A22
-        gelqt3(A22_32, T22);
+        gelqt3(A12_13, T22);
 
-        // // step 10: manually compute T21 = A12ᴴ
-        // for (idx_t j = 0; j < m2; ++j) {
-        //     for (idx_t i = 0; i < m1; ++i) {
-        //         if constexpr (is_complex<T>)
-        //             T21(i, j) = std::conj(A12(j, i));
-        //         else
-        //             T21(i, j) = A12(j, i);
-        //     }
-        // }
+        // step 10: A12 = T12
         lacpy(Uplo::General, A12, T12);
 
         // step 11: T21 = T21 * T22ᴴ

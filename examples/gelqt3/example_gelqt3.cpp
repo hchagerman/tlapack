@@ -201,8 +201,8 @@ int main(int argc, char** argv)
 
     srand(3);  // Init random seed
 
-    m = 199;
-    n = 257;
+    m = 3;
+    n = 7;
 
     std::cout.precision(5);
     std::cout << std::scientific << std::showpos;
