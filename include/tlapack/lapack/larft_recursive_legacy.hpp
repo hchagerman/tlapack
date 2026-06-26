@@ -82,6 +82,9 @@ namespace tlapack {
  *     - If storeMode = StoreV::Columnwise: n-by-k matrix V.
  *     - If storeMode = StoreV::Rowwise:    k-by-n matrix V.
  *
+ * @param[in] tau Vector of length k containing the scalar factors
+ *      of the elementary reflectors H.
+ *
  * @param[out] Tmatrix Matrix of size k-by-k containing the triangular factors
  *      of the block reflector.
  *     - Direction::Forward:  T is upper triangular.
@@ -92,10 +95,12 @@ namespace tlapack {
 template <TLAPACK_DIRECTION direction_t,
           TLAPACK_STOREV storage_t,
           TLAPACK_SMATRIX matrixV_t,
+          TLAPACK_VECTOR vector_t,
           TLAPACK_SMATRIX matrixT_t>
 int larft_recursive(direction_t direction,
                     storage_t storeMode,
                     const matrixV_t& V,
+                    const vector_t& tau,
                     matrixT_t& Tmatrix)
 {
     // data traits
@@ -109,8 +114,7 @@ int larft_recursive(direction_t direction,
 
     // constant
     const idx_t n = (storeMode == StoreV::Columnwise) ? nrows(V) : ncols(V);
-    const idx_t k = (storeMode == StoreV::Columnwise) ? ncols(V) : nrows(V);
-    ;
+    const idx_t k = size(tau);
 
     // check arguments
     tlapack_check_false(direction != Direction::Backward &&
@@ -127,6 +131,7 @@ int larft_recursive(direction_t direction,
         // base case
     }
     else if (n == 1 || k == 1) {
+        Tmatrix(0, 0) = tau[0];
         return 0;
     }
 
@@ -147,12 +152,15 @@ int larft_recursive(direction_t direction,
         auto V0 = slice(V, range(0, n), range(0, l));
         auto V1 = slice(V, range(l, n), range(l, k));
 
+        auto tau0 = slice(tau, range(0, l));
+        auto tau1 = slice(tau, range(l, k));
+
         auto T00 = slice(Tmatrix, range(0, l), range(0, l));
         auto T01 = slice(Tmatrix, range(0, l), range(l, k));
         auto T11 = slice(Tmatrix, range(l, k), range(l, k));
 
-        larft_recursive(direction, storeMode, V0, T00);
-        larft_recursive(direction, storeMode, V1, T11);
+        larft_recursive_legacy(direction, storeMode, V0, tau0, T00);
+        larft_recursive_legacy(direction, storeMode, V1, tau1, T11);
 
         for (idx_t j = 0; j < l; ++j) {
             for (idx_t i = 0; i < k - l; ++i) {
@@ -187,9 +195,13 @@ int larft_recursive(direction_t direction,
         auto T01 = slice(Tmatrix, range(0, l), range(l, k));
         auto T11 = slice(Tmatrix, range(l, k), range(l, k));
 
-        larft_recursive(direction, storeMode, v0, T00);
+        // slicing tau
+        auto tau0 = slice(tau, range(0, l));
+        auto tau1 = slice(tau, range(l, k));
 
-        larft_recursive(direction, storeMode, v1, T11);
+        larft_recursive_legacy(direction, storeMode, v0, tau0, T00);
+
+        larft_recursive_legacy(direction, storeMode, v1, tau1, T11);
 
         auto V01 = slice(V, range(0, l), range(l, k));
         lacpy(Uplo::General, V01, T01);
@@ -222,9 +234,13 @@ int larft_recursive(direction_t direction,
         auto T01 = slice(Tmatrix, range(0, l), range(l, k));
         auto T11 = slice(Tmatrix, range(l, k), range(l, k));
 
-        larft_recursive(direction, storeMode, v0, T00);
+        // slicing tau
+        auto tau0 = slice(tau, range(0, l));
+        auto tau1 = slice(tau, range(l, k));
 
-        larft_recursive(direction, storeMode, v1, T11);
+        larft_recursive_legacy(direction, storeMode, v0, tau0, T00);
+
+        larft_recursive_legacy(direction, storeMode, v1, tau1, T11);
 
         for (idx_t j = 0; j < k - l; ++j) {
             for (idx_t i = 0; i < l; ++i) {
@@ -259,9 +275,13 @@ int larft_recursive(direction_t direction,
         auto T01 = slice(Tmatrix, range(0, l), range(l, k));
         auto T11 = slice(Tmatrix, range(l, k), range(l, k));
 
-        larft_recursive(direction, storeMode, v0, T00);
+        // slicing tau
+        auto tau0 = slice(tau, range(0, l));
+        auto tau1 = slice(tau, range(l, k));
 
-        larft_recursive(direction, storeMode, v1, T11);
+        larft_recursive_legacy(direction, storeMode, v0, tau0, T00);
+
+        larft_recursive_legacy(direction, storeMode, v1, tau1, T11);
 
         auto V01 = slice(V, range(0, l), range(l, k));
         lacpy(Uplo::General, V01, T01);
@@ -288,4 +308,4 @@ int larft_recursive(direction_t direction,
 
 }  // namespace tlapack
 
-#endif  // TLAPACK_LARFT_RECURSIVE_HH
+#endif  // TLAPACK_LARFT_recursive_legacy_HH

@@ -236,8 +236,8 @@ int larft(direction_t direction,
 
 #endif  // TLAPACK_LARFT_HH
 
-#ifndef TLAPACK_LARFT_RECURSIVE_HH
-#define TLAPACK_LARFT_RECURSIVE_HH
+#ifndef TLAPACK_LARFT_legacy_HH
+#define TLAPACK_LARFT_legacy_HH
 
 /** Forms the triangular factor T of a block reflector H of order n,
  * which is defined as a product of k elementary reflectors.
@@ -297,7 +297,7 @@ int larft(direction_t direction,
  * @param[in] tau Vector of length k containing the scalar factors
  *      of the elementary reflectors H.
  *
- * @param[out] T Matrix of size k-by-k containing the triangular factors
+ * @param[out] Tmatrix Matrix of size k-by-k containing the triangular factors
  *      of the block reflector.
  *     - Direction::Forward:  T is upper triangular.
  *     - Direction::Backward: T is lower triangular.
@@ -309,11 +309,11 @@ template <TLAPACK_DIRECTION direction_t,
           TLAPACK_SMATRIX matrixV_t,
           TLAPACK_VECTOR vector_t,
           TLAPACK_SMATRIX matrixT_t>
-int larft_recursive(direction_t direction,
-                    storage_t storeMode,
-                    const matrixV_t& V,
-                    const vector_t& tau,
-                    matrixT_t& Tmatrix)
+int larft_legacy(direction_t direction,
+                 storage_t storeMode,
+                 const matrixV_t& V,
+                 const vector_t& tau,
+                 matrixT_t& Tmatrix)
 {
     // data traits
     using std::size_t;
@@ -519,5 +519,4 @@ int larft_recursive(direction_t direction,
 }
 
 }  // namespace tlapack
-
-#endif  // TLAPACK_LARFT_RECURSIVE_HH
+#endif  // TLAPACK_LARFT_legacy_HH

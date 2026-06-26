@@ -118,11 +118,12 @@ void run(size_t m, size_t n)
     // Copy A to Q
     tlapack::lacpy(tlapack::GENERAL, A, Q);
 
-    tlapack::geqrf(Q, tau);
+    auto tau1 = diag(Tmatrix);
+    tlapack::geqrf(Q, tau1);
     tlapack::geqrf(Qcopy, taucopy);
 
     tlapack::larft_recursive(tlapack::Direction::Forward,
-                             tlapack::StoreV::Columnwise, Q, tau, Tmatrix);
+                             tlapack::StoreV::Columnwise, Q, Tmatrix);
 
     tlapack::larft(tlapack::Direction::Forward, tlapack::StoreV::Columnwise,
                    Qcopy, taucopy, Tmatrixcopy);

@@ -109,7 +109,7 @@ int geqrf_work(A_t& A, tau_t& tau, work_t& work, const GeqrfOpts& opts = {})
             // Form the triangular factor of the block reflector H = H(j)
             // H(j+1) . . . H(j+ib-1)
             auto TT1 = slice(TT, range(0, ib), range(0, ib));
-            larft_recursive(FORWARD, COLUMNWISE_STORAGE, A11, tauw1, TT1);
+            larft_recursive(FORWARD, COLUMNWISE_STORAGE, A11, TT1);
 
             // Apply H to A(j:m,j+ib:n) from the left
             auto A12 = slice(A, range(j, m), range(j + ib, n));
